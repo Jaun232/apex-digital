@@ -39,15 +39,19 @@ export default function CustomCursor() {
 
   return (
     <>
-      {/* The trailing outer circle */}
+      {/* The trailing outer circle with 2 inner dots */}
       <div 
         ref={cursorRef} 
-        className={`fixed top-0 left-0 w-8 h-8 border border-zinc-400 rounded-full pointer-events-none z-[9999] mix-blend-difference transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
-      />
+        className={`fixed top-0 left-0 w-12 h-12 border border-[#4a6b8c] rounded-full pointer-events-none z-[9999] transition-opacity duration-300 flex items-center justify-center ${isVisible ? 'opacity-60' : 'opacity-0'}`}
+      >
+        <div className="absolute w-1 h-1 bg-[#4a6b8c] rounded-full top-3 right-3"></div>
+        <div className="absolute w-1 h-1 bg-[#4a6b8c] rounded-full bottom-3 left-3"></div>
+      </div>
+      
       {/* The precise inner dot */}
       <div 
         ref={dotRef} 
-        className={`fixed top-0 left-0 w-1.5 h-1.5 bg-white rounded-full pointer-events-none z-[10000] mix-blend-difference transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+        className={`fixed top-0 left-0 w-1.5 h-1.5 bg-[#4a6b8c] rounded-full pointer-events-none z-[10000] transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
       />
     </>
   );

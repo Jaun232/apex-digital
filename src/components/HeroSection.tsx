@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Environment, Sparkles } from '@react-three/drei';
+import { Environment, Sparkles, useTexture, Clouds, Cloud } from '@react-three/drei';
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -15,44 +15,43 @@ if (typeof window !== "undefined") {
 const scrollData = { progress: 0 };
 
 function GroundPlane() {
+  const mountainTex = useTexture('/mountain.png');
+
   return (
     <group>
-      {/* A large plane for forthcoming displacement mapping */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -2, 0]}>
-        <planeGeometry args={[200, 200, 128, 128]} />
-        <meshStandardMaterial 
-          color="#0a0a0f" 
-          metalness={0.8}
-          roughness={0.4}
-          wireframe={true}
-          emissive="#1a1a2e"
+      {/* Massive 2.5D Image Plane for Photorealistic Parallax */}
+      <mesh position={[0, 15, -100]}>
+        <planeGeometry args={[400, 400]} />
+        <meshBasicMaterial 
+          map={mountainTex}
+          blending={THREE.MultiplyBlending}
+          transparent={true}
+          fog={true}
+          opacity={0.85}
         />
       </mesh>
-      
-      {/* Grid helper for scale/perspective */}
-      <gridHelper args={[200, 200, '#4a00ff', '#101020']} position={[0, -1.99, 0]} />
     </group>
   );
 }
 
 function CameraRig() {
   useFrame((state) => {
-    // We fly "forward" over the ground grid. 
-    // Start at z=10, end at z=-50
-    const targetZ = THREE.MathUtils.lerp(10, -50, scrollData.progress);
+    // We fly "forward" into the mountain valley. 
+    // Start at z=40, end at z=10
+    const targetZ = THREE.MathUtils.lerp(40, 10, scrollData.progress);
     
     // Smoothly interpolate camera position
     state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.1);
     
     // Add subtle mouse parallax
     const targetX = (state.pointer.x * 2);
-    const targetY = (state.pointer.y * 1) + 2; // Keep camera above ground
+    const targetY = (state.pointer.y * 1) + 2;
 
     state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.05);
     state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.05);
     
-    // Look slightly downward towards the horizon
-    state.camera.lookAt(0, 0, targetZ - 20);
+    // Look UP towards the massive peaks
+    state.camera.lookAt(0, 15, -20);
   });
   return null;
 }
@@ -99,10 +98,10 @@ export default function HeroSection() {
   }, []);
 
   return (
-    <div ref={containerRef} className="relative w-full h-screen bg-[#030305]">
+    <div ref={containerRef} className="relative w-full h-screen bg-[#f0f4f8]">
       
       {/* --- 1. GLOBAL NAVIGATION WRAPPER --- */}
-      <nav className="fixed top-0 left-0 w-full z-50 px-12 py-10 flex justify-between items-start mix-blend-difference pointer-events-auto">
+      <nav className="fixed top-0 left-0 w-full z-50 px-12 py-10 flex justify-between items-start pointer-events-auto">
         
         {/* Top Left Navigation Links */}
         <div className="flex gap-10">
@@ -110,7 +109,7 @@ export default function HeroSection() {
             <a 
               key={link} 
               href={`#${link.toLowerCase()}`}
-              className={`tracking-[0.2em] text-[0.65rem] font-sans uppercase transition-colors duration-300 pb-2 ${index === 0 ? 'text-white border-b border-[#4a00ff]' : 'text-zinc-500 hover:text-white'}`}
+              className={`tracking-[0.2em] text-[0.65rem] font-sans uppercase transition-colors duration-300 pb-2 ${index === 0 ? 'text-[#4a6b8c] border-b border-[#4a6b8c]' : 'text-zinc-600 hover:text-[#4a6b8c]'}`}
             >
               {link}
             </a>
@@ -119,18 +118,18 @@ export default function HeroSection() {
 
         {/* Top Right Navigation Links (News, Menu) */}
         <div className="flex items-center gap-6">
-          <span className="tracking-[0.2em] text-[0.65rem] font-sans uppercase text-zinc-500 hover:text-white cursor-pointer transition-colors">
+          <span className="tracking-[0.2em] text-[0.65rem] font-sans uppercase text-zinc-600 hover:text-[#4a6b8c] cursor-pointer transition-colors">
             News
           </span>
-          <div className="w-6 h-6 rounded-full bg-transparent flex items-center justify-center border border-zinc-500 text-[0.55rem] text-zinc-400">
+          <div className="w-6 h-6 rounded-full bg-transparent flex items-center justify-center border border-zinc-600 text-[0.55rem] text-zinc-600">
             18
           </div>
-          <span className="tracking-[0.2em] text-[0.65rem] font-sans uppercase text-zinc-500 hover:text-white cursor-pointer transition-colors">
+          <span className="tracking-[0.2em] text-[0.65rem] font-sans uppercase text-zinc-600 hover:text-[#4a6b8c] cursor-pointer transition-colors">
             Menu
           </span>
           <div className="flex gap-1 ml-2">
-            <div className="w-1 h-1 rounded-full bg-zinc-500"></div>
-            <div className="w-1 h-1 rounded-full bg-zinc-500"></div>
+            <div className="w-1 h-1 rounded-full bg-zinc-600"></div>
+            <div className="w-1 h-1 rounded-full bg-zinc-600"></div>
           </div>
         </div>
       </nav>
@@ -138,12 +137,22 @@ export default function HeroSection() {
 
       {/* --- 2. R3F CANVAS --- */}
       <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
-        <Canvas camera={{ position: [0, 2, 10], fov: 60 }}>
-          <ambientLight intensity={0.2} />
-          <directionalLight position={[10, 10, 5]} intensity={2} color="#ffffff" />
+        <Canvas camera={{ position: [0, 5, 40], fov: 60 }}>
+          {/* Dense White Atmospheric Fog */}
+          <fog attach="fog" args={['#f0f4f8', 20, 100]} />
+
+          <ambientLight intensity={0.6} color="#ffffff" />
+          {/* Warm directional light for sunlight */}
+          <directionalLight position={[20, 30, 10]} intensity={2.5} color="#fff4e6" />
           
-          {/* Neon sparks over the ground */}
-          <Sparkles count={300} scale={100} size={2} speed={0.4} color="#6b33ff" opacity={0.3} position={[0, 5, -20]} />
+          {/* Blowing Snow Particles */}
+          <Sparkles count={300} scale={100} size={4} speed={0.2} color="#ffffff" opacity={0.8} position={[0, 10, -10]} />
+          
+          {/* Volumetric Clouds */}
+          <Clouds material={THREE.MeshBasicMaterial}>
+            <Cloud segments={40} bounds={[100, 10, 100]} volume={15} color="#f0f4f8" position={[0, -2, -10]} opacity={0.8} speed={0.1} />
+            <Cloud segments={20} bounds={[50, 5, 50]} volume={10} color="#ffffff" position={[0, 5, 0]} opacity={0.5} speed={0.2} />
+          </Clouds>
           
           {/* Procedural Scene */}
           <GroundPlane />
@@ -162,29 +171,29 @@ export default function HeroSection() {
       >
         {/* Middle Left Logo */}
         <div className="absolute top-1/2 left-12 -translate-y-1/2 flex items-center gap-8">
-          {/* Geometric 'A' mark (scaled up and detailed) */}
-          <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="opacity-90">
+          {/* Geometric 'A' mark (dark charcoal) */}
+          <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#4a6b8c" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="opacity-90">
             <path d="M2 20h20L12 4z" />
-            <circle cx="12" cy="14" r="1.5" fill="white" opacity="0.5" />
-            <circle cx="12" cy="8" r="1" fill="white" />
-            <circle cx="7" cy="17" r="1" fill="white" />
-            <circle cx="17" cy="17" r="1" fill="white" />
+            <circle cx="12" cy="14" r="1.5" fill="#4a6b8c" opacity="0.5" />
+            <circle cx="12" cy="8" r="1" fill="#4a6b8c" />
+            <circle cx="7" cy="17" r="1" fill="#4a6b8c" />
+            <circle cx="17" cy="17" r="1" fill="#4a6b8c" />
           </svg>
           {/* Vertical Separator */}
-          <div className="w-[1px] h-12 bg-zinc-600"></div>
+          <div className="w-[1px] h-12 bg-zinc-400"></div>
           {/* Brand Name */}
-          <h1 className="text-white text-5xl md:text-6xl font-extralight tracking-[0.4em] uppercase">
+          <h1 className="text-[#4a6b8c] text-5xl md:text-6xl font-extralight tracking-[0.4em] uppercase">
             Apex
           </h1>
         </div>
 
         {/* Bottom Left Text */}
-        <p className="absolute bottom-12 left-12 text-zinc-500 text-[0.65rem] font-light tracking-[0.3em] uppercase">
+        <p className="absolute bottom-12 left-12 text-zinc-600 text-[0.65rem] font-light tracking-[0.3em] uppercase">
           Scroll down to discover
         </p>
 
         {/* Bottom Right Line Indicator */}
-        <div className="absolute bottom-12 right-12 w-8 h-[1px] bg-zinc-500"></div>
+        <div className="absolute bottom-12 right-12 w-8 h-[1px] bg-zinc-400"></div>
       </div>
       {/* ----------------------- */}
     </div>
