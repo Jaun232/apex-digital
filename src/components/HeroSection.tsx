@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Environment, Sparkles } from '@react-three/drei';
+import { Environment, Sparkles, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -20,8 +20,8 @@ function GroundPlane() {
       {/* A large plane for forthcoming displacement mapping */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -2, 0]}>
         <planeGeometry args={[200, 200, 128, 128]} />
-        <meshStandardMaterial 
-          color="#0a0a0f" 
+        <meshStandardMaterial
+          color="#0a0a0f"
           metalness={0.8}
           roughness={0.4}
           wireframe={true}
@@ -32,6 +32,68 @@ function GroundPlane() {
       {/* Grid helper for scale/perspective */}
       <gridHelper args={[200, 200, '#4a00ff', '#101020']} position={[0, -1.99, 0]} />
     </group>
+  );
+}
+
+function Monolith({ position, scale }: { position: [number, number, number], scale: [number, number, number] }) {
+  return (
+    <mesh position={position}>
+      <boxGeometry args={scale} />
+      <meshStandardMaterial
+        color="#050508"
+        metalness={1}
+        roughness={0.1}
+        emissive="#4a00ff"
+        emissiveIntensity={0.2}
+      />
+      {/* Neon Edge Highlight */}
+      <lineSegments>
+        <edgesGeometry args={[new THREE.BoxGeometry(...scale)]} />
+        <lineBasicMaterial color="#6b33ff" linewidth={1} />
+      </lineSegments>
+    </mesh>
+  );
+}
+
+function MonolithField() {
+  const monoliths = React.useMemo(() => {
+    const items = [];
+    for (let i = 0; i < 40; i++) {
+      items.push({
+        position: [
+          (Math.random() - 0.5) * 40, // X: spread across 40 units
+          (Math.random() * 5) - 1,    // Y: varying heights
+          -Math.random() * 100,       // Z: spread deep into the scene
+        ] as [number, number, number],
+        scale: [
+          Math.random() * 2 + 0.5,    // Width
+          Math.random() * 10 + 5,     // Height (tall monoliths)
+          Math.random() * 2 + 0.5,    // Depth
+        ] as [number, number, number],
+      });
+    }
+    return items;
+  }, []);
+
+  return (
+    <group>
+      {monoliths.map((m, i) => (
+        <Monolith key={i} position={m.position} scale={m.scale} />
+      ))}
+    </group>
+  );
+}
+
+function BugattiModel() {
+  const { scene } = useGLTF('/bugatti.glb');
+  
+  return (
+    <primitive
+      object={scene}
+      position={[0, -1.5, -30]}
+      scale={1.5}
+      rotation={[0, Math.PI / 2, 0]}
+    />
   );
 }
 
@@ -147,6 +209,8 @@ export default function HeroSection() {
           
           {/* Procedural Scene */}
           <GroundPlane />
+          <MonolithField />
+          <BugattiModel />
           <CameraRig />
           
           {/* Environment maps for reflections */}
