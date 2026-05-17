@@ -1,65 +1,103 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useRef } from 'react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import HeroSection from '../components/HeroSection';
+
+if (typeof window !== "undefined") {
+  gsap.registerPlugin(ScrollTrigger);
+}
 
 export default function Home() {
+  const servicesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!servicesRef.current) return;
+
+    // 2. TIMED TRANSITION HOOK (GSAP & TAILWIND)
+    const elements = servicesRef.current.querySelectorAll('.service-item');
+    
+    const ctx = gsap.context(() => {
+      gsap.fromTo(elements, 
+        { 
+          y: 20, 
+          opacity: 0 
+        },
+        {
+          y: 0,
+          opacity: 1,
+          stagger: 0.15,
+          ease: "power2.out",
+          duration: 1,
+          scrollTrigger: {
+            trigger: servicesRef.current,
+            start: "top 85%", // Trigger when section hits 85% of viewport
+            toggleActions: "play none none reverse"
+          }
+        }
+      );
+    }, servicesRef); // Scoped to servicesRef
+
+    return () => {
+      ctx.revert(); // Clean up animations safely
+    };
+  }, []);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="min-h-screen bg-[#030305] text-white overflow-hidden">
+      {/* 1. DOM FLOW & SCROLL RUNWAY */}
+      {/* 
+        HeroSection remains anchored at the absolute top of the viewport.
+        Its internal GSAP ScrollTrigger pins the container for a 2500px runway.
+      */}
+      <HeroSection />
+
+      {/* 
+        Immediately following the pinned 2500px hero container runway, 
+        append a new semantic section layer.
+      */}
+      <section 
+        id="services-grid"
+        ref={servicesRef}
+        className="w-full relative z-20 py-32 px-8 bg-gradient-to-b from-[#030305] via-[#050508] to-[#020204]"
+      >
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-16 border-t border-white/10 pt-24">
+          
+          {/* 3. CONTENT INITIALIZATION */}
+          
+          {/* Service Item 01 */}
+          <div className="service-item flex flex-col gap-6">
+            <h3 className="tracking-[0.3em] font-sans text-zinc-400 text-sm uppercase">
+              01 // EMERGENCE PLATFORMS
+            </h3>
+            <p className="text-white/50 font-light leading-relaxed text-sm">
+              Web Architecture &amp; Next.js SaaS setups. We forge scalable, lightning-fast digital environments designed for massive parallel engagement.
+            </p>
+          </div>
+
+          {/* Service Item 02 */}
+          <div className="service-item flex flex-col gap-6">
+            <h3 className="tracking-[0.3em] font-sans text-zinc-400 text-sm uppercase">
+              02 // SYNAPSE ENGINE
+            </h3>
+            <p className="text-white/50 font-light leading-relaxed text-sm">
+              Automated Data Systems &amp; Tool Optimization. Bridging operational gaps with intelligent systems that learn and adapt in real-time.
+            </p>
+          </div>
+
+          {/* Service Item 03 */}
+          <div className="service-item flex flex-col gap-6">
+            <h3 className="tracking-[0.3em] font-sans text-zinc-400 text-sm uppercase">
+              03 // EXPERIENTIAL LABS
+            </h3>
+            <p className="text-white/50 font-light leading-relaxed text-sm">
+              Interactive Interfaces &amp; Premium Frontends. Pushing the boundaries of web GL and dynamic motion to create unforgettable experiences.
+            </p>
+          </div>
+
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </section>
+    </main>
   );
 }
