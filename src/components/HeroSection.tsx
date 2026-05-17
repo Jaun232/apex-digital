@@ -6,6 +6,7 @@ import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import Lenis from 'lenis';
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -69,6 +70,23 @@ export default function HeroSection() {
     // Reset progress on mount to prevent stale state across HMR
     scrollData.progress = 0;
 
+    // Initialize Lenis smooth scroll
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // standard easeOutExpo
+      smoothWheel: true,
+    });
+
+    // Synchronize Lenis with GSAP ScrollTrigger
+    lenis.on('scroll', ScrollTrigger.update);
+
+    // Synchronize the GSAP ticker with Lenis so they render on the exact same frame
+    const gsapTicker = (time: number) => {
+      lenis.raf(time * 1000); // convert seconds to milliseconds
+    };
+    gsap.ticker.add(gsapTicker);
+    gsap.ticker.lagSmoothing(0);
+
     const timeline = gsap.timeline({
       scrollTrigger: {
         trigger: containerRef.current,
@@ -97,6 +115,8 @@ export default function HeroSection() {
     return () => {
       timeline.kill();
       ScrollTrigger.getAll().forEach(trigger => trigger.kill());
+      gsap.ticker.remove(gsapTicker);
+      lenis.destroy();
     };
   }, []);
 
