@@ -104,7 +104,7 @@ export default function HeroSection() {
     <div ref={containerRef} className="relative w-full h-screen bg-[#030305]">
       
       {/* --- 1. GLOBAL NAVIGATION WRAPPER --- */}
-      <nav className="fixed top-0 left-0 w-full z-50 px-12 py-10 flex justify-between items-start mix-blend-difference pointer-events-auto">
+      <nav className="fixed top-[12vh] left-0 w-full z-50 px-12 py-4 flex justify-between items-start mix-blend-difference pointer-events-auto">
         
         {/* Top Left Navigation Links */}
         <div className="flex gap-10">
