@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useRef } from 'react';
+import React, { Suspense, useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Environment, Sparkles, useTexture, Clouds, Cloud } from '@react-three/drei';
+import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -14,44 +14,47 @@ if (typeof window !== "undefined") {
 // Global scroll state to pass data between GSAP and R3F
 const scrollData = { progress: 0 };
 
-function GroundPlane() {
-  const mountainTex = useTexture('/mountain.png');
+function MountainModel() {
+  const { scene } = useGLTF('/moon_-_hansteen__billy_craters.glb');
+  const meshRef = useRef<THREE.Group>(null);
+
+  useEffect(() => {
+    // Apply a white/snowy material to all meshes in the model
+    scene.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        mesh.material = new THREE.MeshStandardMaterial({
+          color: '#e8ecf0',
+          roughness: 0.85,
+          metalness: 0.05,
+        });
+      }
+    });
+  }, [scene]);
 
   return (
-    <group>
-      {/* Massive 2.5D Image Plane for Photorealistic Parallax */}
-      <mesh position={[0, 15, -100]}>
-        <planeGeometry args={[400, 400]} />
-        <meshBasicMaterial 
-          map={mountainTex}
-          blending={THREE.MultiplyBlending}
-          transparent={true}
-          fog={true}
-          opacity={0.85}
-        />
-      </mesh>
+    <group ref={meshRef} position={[0, -8, -30]} scale={[12, 12, 12]} rotation={[0, 0, 0]}>
+      <primitive object={scene} />
     </group>
   );
 }
 
 function CameraRig() {
   useFrame((state) => {
-    // We fly "forward" into the mountain valley. 
-    // Start at z=40, end at z=10
-    const targetZ = THREE.MathUtils.lerp(40, 10, scrollData.progress);
+    // Fly forward into the mountain
+    const targetZ = THREE.MathUtils.lerp(50, 15, scrollData.progress);
     
-    // Smoothly interpolate camera position
     state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.1);
     
-    // Add subtle mouse parallax
+    // Subtle mouse parallax
     const targetX = (state.pointer.x * 2);
-    const targetY = (state.pointer.y * 1) + 2;
+    const targetY = (state.pointer.y * 1) + 5;
 
     state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.05);
     state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.05);
     
-    // Look UP towards the massive peaks
-    state.camera.lookAt(0, 15, -20);
+    // Look at the peak
+    state.camera.lookAt(0, 5, -20);
   });
   return null;
 }
@@ -63,7 +66,6 @@ export default function HeroSection() {
   useEffect(() => {
     if (!containerRef.current || !fadeOutRef.current) return;
 
-    // Reset progress on mount to prevent stale state across HMR
     scrollData.progress = 0;
 
     const timeline = gsap.timeline({
@@ -76,13 +78,11 @@ export default function HeroSection() {
       }
     });
 
-    // Animate the global scrollData proxy object
     timeline.to(scrollData, {
       progress: 1,
       ease: "none"
     }, 0);
 
-    // Stagger fade-out for overlay text components
     const textElements = fadeOutRef.current.children;
     timeline.to(textElements, {
       opacity: 0,
@@ -98,104 +98,134 @@ export default function HeroSection() {
   }, []);
 
   return (
-    <div ref={containerRef} className="relative w-full h-screen bg-[#f0f4f8]">
+    <div ref={containerRef} className="relative w-full h-screen bg-[#e8ecf0]">
       
-      {/* --- 1. GLOBAL NAVIGATION WRAPPER --- */}
-      <nav className="fixed top-0 left-0 w-full z-50 px-12 py-10 flex justify-between items-start pointer-events-auto">
-        
-        {/* Top Left Navigation Links */}
-        <div className="flex gap-10">
-          {['Home', 'Services', 'Portfolio', 'Contact'].map((link, index) => (
-            <a 
-              key={link} 
-              href={`#${link.toLowerCase()}`}
-              className={`tracking-[0.2em] text-[0.65rem] font-sans uppercase transition-colors duration-300 pb-2 ${index === 0 ? 'text-[#4a6b8c] border-b border-[#4a6b8c]' : 'text-zinc-600 hover:text-[#4a6b8c]'}`}
-            >
-              {link}
-            </a>
-          ))}
-        </div>
-
-        {/* Top Right Navigation Links (News, Menu) */}
-        <div className="flex items-center gap-6">
-          <span className="tracking-[0.2em] text-[0.65rem] font-sans uppercase text-zinc-600 hover:text-[#4a6b8c] cursor-pointer transition-colors">
-            News
-          </span>
-          <div className="w-6 h-6 rounded-full bg-transparent flex items-center justify-center border border-zinc-600 text-[0.55rem] text-zinc-600">
-            18
+      {/* --- 1. NAVIGATION (Montfort-matched positioning) --- */}
+      {/* Montfort: nav is ~130px from top, links have wide letter-spacing,
+          active link has a thin underline BELOW with ~8px gap,
+          nav links are centered-left with generous spacing */}
+      <nav className="fixed top-0 left-0 w-full z-50 pointer-events-auto"
+           style={{ paddingTop: '42px', paddingBottom: '20px', paddingLeft: '48px', paddingRight: '48px' }}>
+        <div className="flex justify-between items-start">
+          
+          {/* Left Navigation Links */}
+          <div className="flex items-start" style={{ gap: '48px' }}>
+            {['Home', 'Services', 'Portfolio', 'Contact'].map((link, index) => (
+              <a 
+                key={link} 
+                href={`#${link.toLowerCase()}`}
+                className="relative font-sans uppercase transition-colors duration-300 text-[#4a6b8c] hover:text-[#2a4a6c]"
+                style={{
+                  fontSize: '11px',
+                  letterSpacing: '0.25em',
+                  fontWeight: 400,
+                }}
+              >
+                {link}
+                {/* Active underline — Montfort style: thin line below with gap */}
+                {index === 0 && (
+                  <span 
+                    className="absolute left-0 bg-[#4a6b8c]"
+                    style={{ bottom: '-12px', width: '100%', height: '1px' }}
+                  />
+                )}
+              </a>
+            ))}
           </div>
-          <span className="tracking-[0.2em] text-[0.65rem] font-sans uppercase text-zinc-600 hover:text-[#4a6b8c] cursor-pointer transition-colors">
-            Menu
-          </span>
-          <div className="flex gap-1 ml-2">
-            <div className="w-1 h-1 rounded-full bg-zinc-600"></div>
-            <div className="w-1 h-1 rounded-full bg-zinc-600"></div>
+
+          {/* Right Navigation (News, Badge, Menu, Dots) */}
+          <div className="flex items-center" style={{ gap: '20px' }}>
+            <span 
+              className="font-sans uppercase text-[#7a9ab5] hover:text-[#4a6b8c] cursor-pointer transition-colors"
+              style={{ fontSize: '11px', letterSpacing: '0.25em', fontWeight: 400 }}
+            >
+              News
+            </span>
+            {/* Filled badge circle with number */}
+            <div 
+              className="rounded-full flex items-center justify-center bg-[#4a6b8c] text-white font-sans"
+              style={{ width: '22px', height: '22px', fontSize: '9px', fontWeight: 500 }}
+            >
+              18
+            </div>
+            <span 
+              className="font-sans uppercase text-[#7a9ab5] hover:text-[#4a6b8c] cursor-pointer transition-colors"
+              style={{ fontSize: '11px', letterSpacing: '0.25em', fontWeight: 400 }}
+            >
+              Menu
+            </span>
+            {/* Two dots */}
+            <div className="flex" style={{ gap: '4px', marginLeft: '4px' }}>
+              <div className="rounded-full bg-[#7a9ab5]" style={{ width: '4px', height: '4px' }}></div>
+              <div className="rounded-full bg-[#7a9ab5]" style={{ width: '4px', height: '4px' }}></div>
+            </div>
           </div>
         </div>
       </nav>
-      {/* ------------------------------------ */}
 
-      {/* --- 2. R3F CANVAS --- */}
+      {/* --- 2. R3F CANVAS (No fog, no clouds) --- */}
       <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
-        <Canvas camera={{ position: [0, 5, 40], fov: 60 }}>
-          {/* Dense White Atmospheric Fog */}
-          <fog attach="fog" args={['#f0f4f8', 20, 100]} />
-
-          <ambientLight intensity={0.6} color="#ffffff" />
-          {/* Warm directional light for sunlight */}
-          <directionalLight position={[20, 30, 10]} intensity={2.5} color="#fff4e6" />
+        <Canvas camera={{ position: [0, 5, 50], fov: 55 }}>
+          {/* Clean, bright lighting */}
+          <ambientLight intensity={0.8} color="#ffffff" />
+          <directionalLight position={[30, 40, 20]} intensity={2.0} color="#fff8f0" />
+          <directionalLight position={[-20, 10, 30]} intensity={0.5} color="#d0e0f0" />
           
-          {/* Blowing Snow Particles */}
-          <Sparkles count={300} scale={100} size={4} speed={0.2} color="#ffffff" opacity={0.8} position={[0, 10, -10]} />
+          {/* GLB Mountain Model */}
+          <Suspense fallback={null}>
+            <MountainModel />
+          </Suspense>
           
-          {/* Volumetric Clouds */}
-          <Clouds material={THREE.MeshBasicMaterial}>
-            <Cloud segments={40} bounds={[100, 10, 100]} volume={15} color="#f0f4f8" position={[0, -2, -10]} opacity={0.8} speed={0.1} />
-            <Cloud segments={20} bounds={[50, 5, 50]} volume={10} color="#ffffff" position={[0, 5, 0]} opacity={0.5} speed={0.2} />
-          </Clouds>
-          
-          {/* Procedural Scene */}
-          <GroundPlane />
           <CameraRig />
-          
-          {/* Environment maps for reflections */}
-          <Environment preset="city" />
         </Canvas>
       </div>
-      {/* ----------------------- */}
 
-      {/* --- 3. MIDDLE LEFT LOGO & BOTTOM LEFT TEXT (Fades out on scroll) --- */}
+      {/* --- 3. LOGO & TEXT OVERLAY (Fades out on scroll) --- */}
       <div 
         ref={fadeOutRef}
         className="absolute inset-0 z-10 pointer-events-none overflow-hidden"
       >
-        {/* Middle Left Logo */}
-        <div className="absolute top-1/2 left-12 -translate-y-1/2 flex items-center gap-8">
-          {/* Geometric 'A' mark (dark charcoal) */}
-          <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#4a6b8c" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="opacity-90">
+        {/* Center-left Logo Lockup — Montfort positions this at roughly 40-45% from top */}
+        <div 
+          className="absolute flex items-center"
+          style={{ top: '45%', left: '48px', transform: 'translateY(-50%)', gap: '24px' }}
+        >
+          {/* Geometric 'A' mark */}
+          <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#4a6b8c" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round" className="opacity-80">
             <path d="M2 20h20L12 4z" />
-            <circle cx="12" cy="14" r="1.5" fill="#4a6b8c" opacity="0.5" />
+            <circle cx="12" cy="14" r="1.5" fill="#4a6b8c" opacity="0.4" />
             <circle cx="12" cy="8" r="1" fill="#4a6b8c" />
             <circle cx="7" cy="17" r="1" fill="#4a6b8c" />
             <circle cx="17" cy="17" r="1" fill="#4a6b8c" />
           </svg>
           {/* Vertical Separator */}
-          <div className="w-[1px] h-12 bg-zinc-400"></div>
+          <div style={{ width: '1px', height: '44px', backgroundColor: '#a0b8cc' }}></div>
           {/* Brand Name */}
-          <h1 className="text-[#4a6b8c] text-5xl md:text-6xl font-extralight tracking-[0.4em] uppercase">
+          <h1 
+            className="font-extralight uppercase text-[#4a6b8c]"
+            style={{ fontSize: '52px', letterSpacing: '0.45em' }}
+          >
             Apex
           </h1>
         </div>
 
-        {/* Bottom Left Text */}
-        <p className="absolute bottom-12 left-12 text-zinc-600 text-[0.65rem] font-light tracking-[0.3em] uppercase">
+        {/* Bottom Left — "SCROLL DOWN TO DISCOVER" */}
+        <p 
+          className="absolute font-light uppercase text-[#7a9ab5]"
+          style={{ bottom: '42px', left: '48px', fontSize: '10px', letterSpacing: '0.3em' }}
+        >
           Scroll down to discover
         </p>
 
-        {/* Bottom Right Line Indicator */}
-        <div className="absolute bottom-12 right-12 w-8 h-[1px] bg-zinc-400"></div>
+        {/* Bottom Right — Thin line indicator */}
+        <div 
+          className="absolute bg-[#a0b8cc]"
+          style={{ bottom: '48px', right: '48px', width: '32px', height: '1px' }}
+        ></div>
       </div>
-      {/* ----------------------- */}
     </div>
   );
 }
+
+// Preload the GLB model
+useGLTF.preload('/moon_-_hansteen__billy_craters.glb');
