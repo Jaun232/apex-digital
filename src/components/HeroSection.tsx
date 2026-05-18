@@ -25,7 +25,7 @@ function GroundPlane() {
           color="#0a0a0f"
           metalness={0.8}
           roughness={0.4}
-          wireframe={true}
+          wireframe={false}
           emissive="#1a1a2e"
         />
       </mesh>
@@ -78,7 +78,7 @@ function MountainModel() {
   return (
     <primitive
       object={scene}
-      position={[0, -2, -45]}
+      position={[0, 0, -45]}
       scale={1}
       rotation={[0, 0, 0]}
     />
