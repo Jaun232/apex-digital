@@ -87,15 +87,15 @@ function CameraRig({ focusRocket }: { focusRocket: boolean }) {
   useFrame((state) => {
     if (focusRocket) {
       // Hard focus mode: override scroll path and push camera to rocket details.
-      const targetX = ROCKET_POINT[0] - 0.08 + state.pointer.x * 0.04;
-      const targetY = ROCKET_POINT[1] + 0.9 + state.pointer.y * 0.04;
-      const targetZ = ROCKET_POINT[2] + 1.35;
+      const targetX = ROCKET_POINT[0] - 0.04 + state.pointer.x * 0.03;
+      const targetY = ROCKET_POINT[1] + 0.72 + state.pointer.y * 0.035;
+      const targetZ = ROCKET_POINT[2] + 0.62;
 
       state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.12);
       state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.12);
       state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.14);
 
-      state.camera.lookAt(ROCKET_POINT[0], ROCKET_POINT[1] + 1.08, ROCKET_POINT[2] - 0.2);
+      state.camera.lookAt(ROCKET_POINT[0], ROCKET_POINT[1] + 0.96, ROCKET_POINT[2]);
       return;
     }
 
