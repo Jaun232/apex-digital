@@ -86,10 +86,12 @@ function MountainModel() {
 }
 
 function Starfield() {
-  const vertices = useMemo(() => {
+  const { vertices, colors } = useMemo(() => {
     const v = [];
+    const c = [];
     const count = 10000;
-    const radius = 500;
+    const radius = 400;
+    const starColors = ['#ffffff', '#ffe9c4', '#d4fbff', '#ffd1ff', '#c4dfff'];
 
     for (let i = 0; i < count; i++) {
       const theta = Math.random() * 2 * Math.PI;
@@ -99,29 +101,55 @@ function Starfield() {
       const y = radius * Math.cos(phi);
       const z = radius * Math.sin(phi) * Math.sin(theta);
       
-      // Only add stars that are above the ground plane (y > -2)
       if (y > -2) {
         v.push(x, y, z);
+        const color = new THREE.Color(starColors[Math.floor(Math.random() * starColors.length)]);
+        c.push(color.r, color.g, color.b);
       }
     }
-    return v;
+    return { vertices: new Float32Array(v), colors: new Float32Array(c) };
   }, []);
 
   return (
     <Points>
-      <bufferGeometry attach="geometry" attributes={{ position: new THREE.Float32BufferAttribute(vertices, 3) }} />
+      <bufferGeometry attach="geometry">
+        <bufferAttribute
+          attach="attributes-position"
+          array={vertices}
+          itemSize={3}
+        />
+        <bufferAttribute
+          attach="attributes-color"
+          array={colors}
+          itemSize={3}
+        />
+      </bufferGeometry>
       <PointMaterial
         attach="material"
         transparent
-        opacity={1}
-        color="#ffffff"
-        size={2}
+        opacity={0.8}
+        vertexColors={true}
+        size={1.5}
         sizeAttenuation={false}
         depthTest={false}
         depthWrite={false}
         blending={THREE.AdditiveBlending}
       />
     </Points>
+  );
+}
+
+function CosmicSky() {
+  const texture = useMemo(() => new THREE.TextureLoader().load('/aron-visuals-NYwZhS4afQc-unsplash.jpg'), []);
+  
+  return (
+    <mesh scale={[-1, 1, 1]}>
+      <sphereGeometry args={[500, 64, 64]} />
+      <meshBasicMaterial
+        side={THREE.BackSide}
+        map={texture}
+      />
+    </mesh>
   );
 }
 
@@ -220,7 +248,8 @@ export default function HeroSection() {
           <MountainModel />
           <CameraRig />
           
-          {/* Night Sky Starfield */}
+          {/* Cosmic Background */}
+          <CosmicSky />
           <Starfield />
           
           {/* Environment maps for reflections */}
