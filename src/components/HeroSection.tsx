@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Environment } from '@react-three/drei';
+import { Environment, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -58,6 +58,31 @@ function CameraRig() {
     state.camera.lookAt(0, 0, targetZ - 20);
   });
   return null;
+}
+
+function MountainModel() {
+  const { scene } = useGLTF('/mountain-optimized.glb');
+  
+  React.useEffect(() => {
+    const box = new THREE.Box3().setFromObject(scene);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    console.log('MOUNTAIN MODEL DIAGNOSTICS:', {
+      size: { x: size.x, y: size.y, z: size.z },
+      center: { x: center.x, y: center.y, z: center.z }
+    });
+  }, [scene]);
+  
+  return (
+    <primitive
+      object={scene}
+      position={[0, -5, -45]}
+      scale={1}
+      rotation={[0, 0, 0]}
+    />
+  );
 }
 
 export default function HeroSection() {
@@ -166,6 +191,7 @@ export default function HeroSection() {
           
           {/* Procedural Scene */}
           <GroundPlane />
+          <MountainModel />
           <CameraRig />
           
           {/* Environment maps for reflections */}
@@ -209,3 +235,5 @@ export default function HeroSection() {
     </div>
   );
 }
+
+useGLTF.preload('/mountain-optimized.glb');
