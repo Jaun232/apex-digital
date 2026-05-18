@@ -57,3 +57,4 @@ Creating turbopack project { dir: 'C:\\Users\\Jane\\Desktop\\Apex Digital', test
  GET / 200 in 698ms (next.js: 502ms, application-code: 196ms)
 ✓ Compiled in 88ms
  GET / 200 in 1418ms (next.js: 469ms, application-code: 949ms)
+ GET / 200 in 955ms (next.js: 15ms, application-code: 940ms)
