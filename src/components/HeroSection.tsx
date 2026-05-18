@@ -88,35 +88,38 @@ function MountainModel() {
 function Starfield() {
   const vertices = useMemo(() => {
     const v = [];
-    const count = 15000;
-    const radius = 300; // Increased radius for a more immersive feel
+    const count = 10000;
+    const radius = 500;
 
     for (let i = 0; i < count; i++) {
-      // Distribute stars in a sphere, but primarily in the upper hemisphere
-      // to ensure they are "above" the floor.
       const theta = Math.random() * 2 * Math.PI;
       const phi = Math.acos(2 * Math.random() - 1);
       
-      // We want more stars in the sky (y > -2) and fewer below the ground
-      // By shifting the distribution or filtering, we can ensure a "sky" effect.
       const x = radius * Math.sin(phi) * Math.cos(theta);
       const y = radius * Math.cos(phi);
       const z = radius * Math.sin(phi) * Math.sin(theta);
       
-      v.push(x, y, z);
+      // Only add stars that are above the ground plane (y > -2)
+      if (y > -2) {
+        v.push(x, y, z);
+      }
     }
     return v;
   }, []);
 
   return (
     <Points>
-      <bufferGeometry attributes={{ position: new THREE.Float32BufferAttribute(vertices, 3) }} />
+      <bufferGeometry attach="geometry" attributes={{ position: new THREE.Float32BufferAttribute(vertices, 3) }} />
       <PointMaterial
+        attach="material"
         transparent
-        opacity={0.8}
+        opacity={1}
         color="#ffffff"
-        size={0.15}
-        sizeAttenuation={true}
+        size={2}
+        sizeAttenuation={false}
+        depthTest={false}
+        depthWrite={false}
+        blending={THREE.AdditiveBlending}
       />
     </Points>
   );
