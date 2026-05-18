@@ -17,6 +17,7 @@ if (typeof window !== "undefined") {
 const scrollData = { progress: 0 };
 const HDR_ENV_FILE = process.env.NEXT_PUBLIC_HDR_ENV_FILE ?? '/env/envmap-min.exr';
 const ROCKET_POINT: [number, number, number] = [0.2, -2, 3.3];
+const ROCKET_FOCUS_CAMERA: [number, number, number] = [0.05, -0.55, 5.15];
 const MODEL_FILE = '/rocket.glb';
 
 function GroundPlane() {
@@ -83,28 +84,35 @@ function GroundPlane() {
 
 
 
-function CameraRig() {
+function CameraRig({ focusRocket }: { focusRocket: boolean }) {
   useFrame((state) => {
-    // Straight low-angle framing: camera starts just above the terrain.
-    const targetX = state.pointer.x * 0.4;
-    const targetY = THREE.MathUtils.lerp(-1.35, 1.9, scrollData.progress) + state.pointer.y * 0.28;
-    const targetZ = THREE.MathUtils.lerp(4.6, -50, scrollData.progress);
+    // Straight low-angle framing by default.
+    const baseX = state.pointer.x * 0.4;
+    const baseY = THREE.MathUtils.lerp(-1.35, 1.9, scrollData.progress) + state.pointer.y * 0.28;
+    const baseZ = THREE.MathUtils.lerp(4.6, -50, scrollData.progress);
 
-    state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.05);
-    state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.05);
+    const targetX = focusRocket ? ROCKET_FOCUS_CAMERA[0] + state.pointer.x * 0.08 : baseX;
+    const targetY = focusRocket ? ROCKET_FOCUS_CAMERA[1] + state.pointer.y * 0.08 : baseY;
+    const targetZ = focusRocket ? ROCKET_FOCUS_CAMERA[2] : baseZ;
+
+    state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.08);
+    state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.08);
     state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.1);
 
-    // Lock opening gaze near the rocket, then transition to travel framing.
-    const lookX =
-      THREE.MathUtils.lerp(ROCKET_POINT[0], 0, scrollData.progress) + state.pointer.x * 0.1;
-    const lookY = THREE.MathUtils.lerp(-1.45, 0, scrollData.progress) + state.pointer.y * 0.08;
-    const lookZ = THREE.MathUtils.lerp(ROCKET_POINT[2], -70, scrollData.progress);
+    // When focused, keep gaze locked on rocket details.
+    const lookX = focusRocket
+      ? ROCKET_POINT[0] + state.pointer.x * 0.02
+      : THREE.MathUtils.lerp(ROCKET_POINT[0], 0, scrollData.progress) + state.pointer.x * 0.1;
+    const lookY = focusRocket
+      ? ROCKET_POINT[1] + 1.1 + state.pointer.y * 0.03
+      : THREE.MathUtils.lerp(-1.45, 0, scrollData.progress) + state.pointer.y * 0.08;
+    const lookZ = focusRocket ? ROCKET_POINT[2] : THREE.MathUtils.lerp(ROCKET_POINT[2], -70, scrollData.progress);
     state.camera.lookAt(lookX, lookY, lookZ);
   });
   return null;
 }
 
-function RocketModel() {
+function RocketModel({ onFocus }: { onFocus: () => void }) {
   const { scene } = useGLTF(MODEL_FILE);
   const rocket = useMemo(() => scene.clone(true), [scene]);
   const { scaleFactor, yOffset } = useMemo(() => {
@@ -127,7 +135,14 @@ function RocketModel() {
   }, [rocket]);
 
   return (
-    <group position={[ROCKET_POINT[0], ROCKET_POINT[1], ROCKET_POINT[2]]} rotation={[0, -0.16, 0]}>
+    <group
+      position={[ROCKET_POINT[0], ROCKET_POINT[1], ROCKET_POINT[2]]}
+      rotation={[0, -0.16, 0]}
+      onClick={(event) => {
+        event.stopPropagation();
+        onFocus();
+      }}
+    >
       <primitive object={rocket} scale={scaleFactor} position={[0, yOffset, 0]} />
     </group>
   );
@@ -139,6 +154,7 @@ export default function HeroSection() {
   const { active: assetsLoading, progress: loadProgress } = useProgress();
   const [showLoader, setShowLoader] = useState(true);
   const [readyHandled, setReadyHandled] = useState(false);
+  const [focusRocket, setFocusRocket] = useState(false);
 
   useEffect(() => {
     if (readyHandled) return;
@@ -233,14 +249,17 @@ export default function HeroSection() {
 
       {/* --- 2. R3F CANVAS --- */}
       <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
-        <Canvas camera={{ position: [0, -1.35, 4.6], fov: 60 }}>
+        <Canvas
+          camera={{ position: [0, -1.35, 4.6], fov: 60 }}
+          onPointerMissed={() => setFocusRocket(false)}
+        >
           <ambientLight intensity={0.2} />
           <directionalLight position={[10, 10, 5]} intensity={2} color="#ffffff" />
           
           {/* Procedural Scene */}
           <GroundPlane />
-          <RocketModel />
-          <CameraRig />
+          <RocketModel onFocus={() => setFocusRocket(true)} />
+          <CameraRig focusRocket={focusRocket} />
           
           {/* Cosmic Background */}
           <CosmicSky />
