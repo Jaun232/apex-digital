@@ -17,8 +17,12 @@ if (typeof window !== "undefined") {
 const scrollData = { progress: 0 };
 const HDR_ENV_FILE = process.env.NEXT_PUBLIC_HDR_ENV_FILE ?? '/env/envmap-min.exr';
 const ROCKET_POINT: [number, number, number] = [0.2, -2, 3.3];
-const ROCKET_FOCUS_CAMERA: [number, number, number] = [0.2, -1.02, 3.72];
 const MODEL_FILE = '/rocket.glb';
+
+type FocusTarget = {
+  position: [number, number, number];
+  radius: number;
+};
 
 function GroundPlane() {
   const moonGeometry = useMemo(() => {
@@ -84,19 +88,21 @@ function GroundPlane() {
 
 
 
-function CameraRig({ focusRocket }: { focusRocket: boolean }) {
+function CameraRig({ focusTarget }: { focusTarget: FocusTarget | null }) {
   useFrame((state) => {
-    if (focusRocket) {
-      // Hard focus mode: override scroll path and push camera to rocket details.
-      const targetX = ROCKET_FOCUS_CAMERA[0] + state.pointer.x * 0.025;
-      const targetY = ROCKET_FOCUS_CAMERA[1] + state.pointer.y * 0.03;
-      const targetZ = ROCKET_FOCUS_CAMERA[2];
+    if (focusTarget) {
+      // True object focus: frame the selected object's world center and size.
+      const [fx, fy, fz] = focusTarget.position;
+      const focusRadius = Math.max(0.45, focusTarget.radius);
+      const targetX = fx + state.pointer.x * 0.03;
+      const targetY = fy + focusRadius * 0.42 + state.pointer.y * 0.03;
+      const targetZ = fz + focusRadius * 1.22;
 
-      state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.2);
-      state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.2);
-      state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.22);
+      state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.18);
+      state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.18);
+      state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.2);
 
-      state.camera.lookAt(ROCKET_POINT[0], ROCKET_POINT[1] + 1.45, ROCKET_POINT[2] - 0.06);
+      state.camera.lookAt(fx, fy + focusRadius * 0.3, fz);
       return;
     }
 
@@ -117,9 +123,10 @@ function CameraRig({ focusRocket }: { focusRocket: boolean }) {
   return null;
 }
 
-function RocketModel({ onFocus }: { onFocus: () => void }) {
+function RocketModel({ onFocus }: { onFocus: (target: FocusTarget) => void }) {
   const { scene } = useGLTF(MODEL_FILE);
   const rocket = useMemo(() => scene.clone(true), [scene]);
+  const groupRef = useRef<THREE.Group>(null);
   const { scaleFactor, yOffset } = useMemo(() => {
     const box = new THREE.Box3().setFromObject(rocket);
     const size = new THREE.Vector3();
@@ -139,18 +146,31 @@ function RocketModel({ onFocus }: { onFocus: () => void }) {
     });
   }, [rocket]);
 
+  const handleSelect = (event: { stopPropagation: () => void }) => {
+    event.stopPropagation();
+    const group = groupRef.current;
+    if (!group) return;
+
+    group.updateWorldMatrix(true, true);
+    const box = new THREE.Box3().setFromObject(group);
+    const center = new THREE.Vector3();
+    const size = new THREE.Vector3();
+    box.getCenter(center);
+    box.getSize(size);
+
+    onFocus({
+      position: [center.x, center.y, center.z],
+      radius: size.length() * 0.5,
+    });
+  };
+
   return (
     <group
+      ref={groupRef}
       position={[ROCKET_POINT[0], ROCKET_POINT[1], ROCKET_POINT[2]]}
       rotation={[0, -0.16, 0]}
-      onClick={(event) => {
-        event.stopPropagation();
-        onFocus();
-      }}
-      onPointerDown={(event) => {
-        event.stopPropagation();
-        onFocus();
-      }}
+      onClick={handleSelect}
+      onPointerDown={handleSelect}
     >
       <primitive object={rocket} scale={scaleFactor} position={[0, yOffset, 0]} />
     </group>
@@ -163,7 +183,7 @@ export default function HeroSection() {
   const { active: assetsLoading, progress: loadProgress } = useProgress();
   const [showLoader, setShowLoader] = useState(true);
   const [readyHandled, setReadyHandled] = useState(false);
-  const [focusRocket, setFocusRocket] = useState(false);
+  const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
 
   useEffect(() => {
     if (readyHandled) return;
@@ -258,14 +278,14 @@ export default function HeroSection() {
 
       {/* --- 2. R3F CANVAS --- */}
       <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
-        <Canvas camera={{ position: [0, -1.35, 4.6], fov: 60 }}>
+        <Canvas camera={{ position: [0, -1.35, 4.6], fov: 60 }} onPointerMissed={() => setFocusTarget(null)}>
           <ambientLight intensity={0.2} />
           <directionalLight position={[10, 10, 5]} intensity={2} color="#ffffff" />
           
           {/* Procedural Scene */}
           <GroundPlane />
-          <RocketModel onFocus={() => setFocusRocket(true)} />
-          <CameraRig focusRocket={focusRocket} />
+          <RocketModel onFocus={setFocusTarget} />
+          <CameraRig focusTarget={focusTarget} />
           
           {/* Cosmic Background */}
           <CosmicSky />
