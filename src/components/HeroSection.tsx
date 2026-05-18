@@ -17,6 +17,7 @@ if (typeof window !== "undefined") {
 const scrollData = { progress: 0 };
 const HDR_ENV_FILE = process.env.NEXT_PUBLIC_HDR_ENV_FILE ?? '/env/envmap-min.exr';
 const ROCKET_POINT: [number, number, number] = [0.2, -2, 3.3];
+const ROCKET_FOCUS_CAMERA: [number, number, number] = [0.2, -1.02, 3.72];
 const MODEL_FILE = '/rocket.glb';
 
 function GroundPlane() {
@@ -87,15 +88,15 @@ function CameraRig({ focusRocket }: { focusRocket: boolean }) {
   useFrame((state) => {
     if (focusRocket) {
       // Hard focus mode: override scroll path and push camera to rocket details.
-      const targetX = ROCKET_POINT[0] - 0.04 + state.pointer.x * 0.03;
-      const targetY = ROCKET_POINT[1] + 0.72 + state.pointer.y * 0.035;
-      const targetZ = ROCKET_POINT[2] + 0.62;
+      const targetX = ROCKET_FOCUS_CAMERA[0] + state.pointer.x * 0.025;
+      const targetY = ROCKET_FOCUS_CAMERA[1] + state.pointer.y * 0.03;
+      const targetZ = ROCKET_FOCUS_CAMERA[2];
 
-      state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.12);
-      state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.12);
-      state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.14);
+      state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.2);
+      state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.2);
+      state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.22);
 
-      state.camera.lookAt(ROCKET_POINT[0], ROCKET_POINT[1] + 0.96, ROCKET_POINT[2]);
+      state.camera.lookAt(ROCKET_POINT[0], ROCKET_POINT[1] + 1.45, ROCKET_POINT[2] - 0.06);
       return;
     }
 
