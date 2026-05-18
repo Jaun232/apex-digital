@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Environment, useGLTF } from '@react-three/drei';
+import { Environment, useGLTF, useProgress } from '@react-three/drei';
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -16,6 +16,7 @@ if (typeof window !== "undefined") {
 // Global scroll state to pass data between GSAP and R3F
 const scrollData = { progress: 0 };
 const HDR_ENV_FILE = process.env.NEXT_PUBLIC_HDR_ENV_FILE ?? '/env/envmap-min.exr';
+const ROCKET_POINT: [number, number, number] = [0.2, -2, 3.3];
 
 function GroundPlane() {
   const moonGeometry = useMemo(() => {
@@ -84,51 +85,70 @@ function GroundPlane() {
 function CameraRig() {
   useFrame((state) => {
     // Straight low-angle framing: camera starts just above the terrain.
-    const targetX = state.pointer.x * 0.45;
-    const targetY = THREE.MathUtils.lerp(-1.35, 1.9, scrollData.progress) + state.pointer.y * 0.3;
+    const targetX = state.pointer.x * 0.4;
+    const targetY = THREE.MathUtils.lerp(-1.35, 1.9, scrollData.progress) + state.pointer.y * 0.28;
     const targetZ = THREE.MathUtils.lerp(4.6, -50, scrollData.progress);
 
     state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.05);
     state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.05);
     state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.1);
 
-    // Keep the gaze low and straight ahead near the ground plane.
-    const lookX = state.pointer.x * 0.12;
-    const lookY = THREE.MathUtils.lerp(-1.65, 0, scrollData.progress) + state.pointer.y * 0.08;
-    const lookZ = THREE.MathUtils.lerp(-4, -70, scrollData.progress);
+    // Lock opening gaze near the rocket, then transition to travel framing.
+    const lookX =
+      THREE.MathUtils.lerp(ROCKET_POINT[0], 0, scrollData.progress) + state.pointer.x * 0.1;
+    const lookY = THREE.MathUtils.lerp(-1.45, 0, scrollData.progress) + state.pointer.y * 0.08;
+    const lookZ = THREE.MathUtils.lerp(ROCKET_POINT[2], -70, scrollData.progress);
     state.camera.lookAt(lookX, lookY, lookZ);
   });
   return null;
 }
 
-function MountainModel() {
-  const { scene } = useGLTF('/mountain-optimized.glb');
-   
-  React.useEffect(() => {
-    const box = new THREE.Box3().setFromObject(scene);
+function RocketModel() {
+  const { scene } = useGLTF('/rocket.glb');
+  const rocket = useMemo(() => scene.clone(true), [scene]);
+  const { scaleFactor, yOffset } = useMemo(() => {
+    const box = new THREE.Box3().setFromObject(rocket);
     const size = new THREE.Vector3();
     box.getSize(size);
-    const center = new THREE.Vector3();
-    box.getCenter(center);
-    console.log('MOUNTAIN MODEL DIAGNOSTICS:', {
-      size: { x: size.x, y: size.y, z: size.z },
-      center: { x: center.x, y: center.y, z: center.z }
+
+    const targetHeight = 4.2;
+    const scaleFactor = size.y > 0 ? targetHeight / size.y : 1;
+    const yOffset = -box.min.y * scaleFactor;
+    return { scaleFactor, yOffset };
+  }, [rocket]);
+
+  useEffect(() => {
+    rocket.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      child.castShadow = true;
+      child.receiveShadow = true;
     });
-  }, [scene]);
-   
+  }, [rocket]);
+
   return (
-    <primitive
-      object={scene}
-      position={[0, -2, -5]}
-      scale={1}
-      rotation={[0, 0, 0]}
-    />
+    <group position={[ROCKET_POINT[0], ROCKET_POINT[1], ROCKET_POINT[2]]} rotation={[0, -0.16, 0]}>
+      <primitive object={rocket} scale={scaleFactor} position={[0, yOffset, 0]} />
+    </group>
   );
 }
 
 export default function HeroSection() {
   const containerRef = useRef<HTMLDivElement>(null);
   const fadeOutRef = useRef<HTMLDivElement>(null);
+  const { active: assetsLoading, progress: loadProgress } = useProgress();
+  const [showLoader, setShowLoader] = useState(true);
+  const [readyHandled, setReadyHandled] = useState(false);
+
+  useEffect(() => {
+    if (readyHandled) return;
+    if (!assetsLoading && loadProgress >= 100) {
+      const timer = window.setTimeout(() => {
+        setShowLoader(false);
+        setReadyHandled(true);
+      }, 260);
+      return () => window.clearTimeout(timer);
+    }
+  }, [assetsLoading, loadProgress, readyHandled]);
 
   useEffect(() => {
     if (!containerRef.current || !fadeOutRef.current) return;
@@ -218,7 +238,7 @@ export default function HeroSection() {
           
           {/* Procedural Scene */}
           <GroundPlane />
-          <MountainModel />
+          <RocketModel />
           <CameraRig />
           
           {/* Cosmic Background */}
@@ -229,6 +249,21 @@ export default function HeroSection() {
         </Canvas>
       </div>
       {/* ----------------------- */}
+
+      {showLoader && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#04060f]/72 backdrop-blur-[2px] pointer-events-none">
+          <div className="flex flex-col items-center gap-5">
+            <div className="relative h-16 w-16">
+              <div className="absolute inset-0 rounded-full border border-[#71d8ff]/35" />
+              <div className="absolute inset-2 rounded-full border-2 border-transparent border-t-[#6fd5ff] border-r-[#9d7eff] animate-spin" />
+              <div className="absolute inset-[34%] rounded-full bg-[#8d67ff]/55 animate-pulse" />
+            </div>
+            <p className="text-[0.62rem] tracking-[0.28em] uppercase text-[#d8e7ff]/85">
+              Initializing Scene {Math.round(loadProgress)}%
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* --- 3. MIDDLE LEFT LOGO & BOTTOM LEFT TEXT (Fades out on scroll) --- */}
       <div 
@@ -283,4 +318,4 @@ export default function HeroSection() {
   );
 }
 
-useGLTF.preload('/mountain-optimized.glb');
+useGLTF.preload('/rocket.glb');
