@@ -149,21 +149,7 @@ export default function HeroSection() {
     <div ref={containerRef} className="relative w-full h-screen bg-[#030305]">
       
       {/* --- 1. GLOBAL NAVIGATION WRAPPER --- */}
-      <nav className="fixed top-[12vh] left-0 w-full z-50 px-12 py-4 flex justify-between items-start mix-blend-difference pointer-events-auto">
-        
-        {/* Top Left Navigation Links */}
-        <div className="flex gap-10">
-          {['Home', 'Services', 'Portfolio', 'Contact'].map((link, index) => (
-            <a 
-              key={link} 
-              href={`#${link.toLowerCase()}`}
-              className={`tracking-[0.2em] text-[0.65rem] font-sans uppercase transition-colors duration-300 pb-2 ${index === 0 ? 'text-white border-b border-[#4a00ff]' : 'text-zinc-500 hover:text-white'}`}
-            >
-              {link}
-            </a>
-          ))}
-        </div>
-
+      <nav className="fixed top-0 left-0 w-full z-50 px-12 py-8 flex justify-end items-start mix-blend-difference pointer-events-auto">
         {/* Top Right Navigation Links (News, Menu) */}
         <div className="flex items-center gap-6">
           <span className="tracking-[0.2em] text-[0.65rem] font-sans uppercase text-zinc-500 hover:text-white cursor-pointer transition-colors">
@@ -205,22 +191,39 @@ export default function HeroSection() {
         ref={fadeOutRef}
         className="absolute inset-0 z-10 pointer-events-none overflow-hidden"
       >
-        {/* Middle Left Logo */}
+        {/* Middle Left Logo & Menu */}
         <div className="absolute top-1/2 left-12 -translate-y-1/2 flex items-center gap-8">
-          {/* Geometric 'A' mark (scaled up and detailed) */}
-          <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="opacity-90">
-            <path d="M2 20h20L12 4z" />
-            <circle cx="12" cy="14" r="1.5" fill="white" opacity="0.5" />
-            <circle cx="12" cy="8" r="1" fill="white" />
-            <circle cx="7" cy="17" r="1" fill="white" />
-            <circle cx="17" cy="17" r="1" fill="white" />
-          </svg>
-          {/* Vertical Separator */}
-          <div className="w-[1px] h-12 bg-zinc-600"></div>
-          {/* Brand Name */}
-          <h1 className="text-white text-5xl md:text-6xl font-extralight tracking-[0.4em] uppercase">
-            Apex
-          </h1>
+          <div className="flex flex-col gap-6">
+            {/* Left Menu positioned above APEX */}
+            <div className="flex gap-6">
+              {['Home', 'Services', 'Portfolio', 'Contact'].map((link, index) => (
+                <a
+                  key={link}
+                  href={`#${link.toLowerCase()}`}
+                  className={`tracking-[0.2em] text-[0.65rem] font-sans uppercase transition-colors duration-300 ${index === 0 ? 'text-white border-b border-[#4a00ff]' : 'text-zinc-500 hover:text-white'}`}
+                >
+                  {link}
+                </a>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-8">
+              {/* Geometric 'A' mark (scaled up and detailed) */}
+              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="opacity-90">
+                <path d="M2 20h20L12 4z" />
+                <circle cx="12" cy="14" r="1.5" fill="white" opacity="0.5" />
+                <circle cx="12" cy="8" r="1" fill="white" />
+                <circle cx="7" cy="17" r="1" fill="white" />
+                <circle cx="17" cy="17" r="1" fill="white" />
+              </svg>
+              {/* Vertical Separator */}
+              <div className="w-[1px] h-12 bg-zinc-600"></div>
+              {/* Brand Name */}
+              <h1 className="text-white text-5xl md:text-6xl font-extralight tracking-[0.4em] uppercase">
+                Apex
+              </h1>
+            </div>
+          </div>
         </div>
 
         {/* Bottom Left Text */}
