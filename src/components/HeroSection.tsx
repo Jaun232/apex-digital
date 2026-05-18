@@ -42,7 +42,7 @@ function CameraRig() {
   useFrame((state) => {
     // We fly "forward" over the ground grid. 
     // Start at z=10, end at z=-50
-    const targetZ = THREE.MathUtils.lerp(10, -50, scrollData.progress);
+    const targetZ = THREE.MathUtils.lerp(5, -50, scrollData.progress);
     
     // Smoothly interpolate camera position
     state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.1);
@@ -78,7 +78,7 @@ function MountainModel() {
   return (
     <primitive
       object={scene}
-      position={[0, 0, -20]}
+      position={[0, 0, -5]}
       scale={1}
       rotation={[0, 0, 0]}
     />
@@ -171,7 +171,7 @@ export default function HeroSection() {
 
       {/* --- 2. R3F CANVAS --- */}
       <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
-        <Canvas camera={{ position: [0, 2, 10], fov: 60 }}>
+        <Canvas camera={{ position: [0, 2, 5], fov: 60 }}>
           <ambientLight intensity={0.2} />
           <directionalLight position={[10, 10, 5]} intensity={2} color="#ffffff" />
           
