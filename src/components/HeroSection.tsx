@@ -16,7 +16,7 @@ if (typeof window !== "undefined") {
 // Global scroll state to pass data between GSAP and R3F
 const scrollData = { progress: 0 };
 const HDR_ENV_FILE = process.env.NEXT_PUBLIC_HDR_ENV_FILE ?? '/env/envmap-min.exr';
-const ROCKET_POINT: [number, number, number] = [0, -2, 3.95];
+const ROCKET_POINT: [number, number, number] = [0, -2, 3.55];
 const MODEL_FILE = '/free_sci-fi_vehicle_002_-_public_domain_cc0.glb';
 
 type FocusTarget = {
