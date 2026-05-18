@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, ThreeEvent, useFrame } from '@react-three/fiber';
 import { Environment, useGLTF, useProgress } from '@react-three/drei';
 import * as THREE from 'three';
 import gsap from 'gsap';
@@ -88,7 +88,13 @@ function GroundPlane() {
 
 
 
-function CameraRig({ focusTarget }: { focusTarget: FocusTarget | null }) {
+function CameraRig({
+  focusTarget,
+  focusDistance,
+}: {
+  focusTarget: FocusTarget | null;
+  focusDistance: number;
+}) {
   useFrame((state) => {
     if (focusTarget) {
       // True object focus: frame the selected object's world center and size.
@@ -96,7 +102,7 @@ function CameraRig({ focusTarget }: { focusTarget: FocusTarget | null }) {
       const focusRadius = Math.max(0.45, focusTarget.radius);
       const targetX = fx + state.pointer.x * 0.03;
       const targetY = fy + focusRadius * 0.42 + state.pointer.y * 0.03;
-      const targetZ = fz + focusRadius * 1.22;
+      const targetZ = fz + focusRadius * focusDistance;
 
       state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.18);
       state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.18);
@@ -184,6 +190,22 @@ export default function HeroSection() {
   const [showLoader, setShowLoader] = useState(true);
   const [readyHandled, setReadyHandled] = useState(false);
   const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
+  const [focusDistance, setFocusDistance] = useState(1.22);
+
+  const handleFocus = (target: FocusTarget) => {
+    setFocusTarget(target);
+    setFocusDistance(1.22);
+  };
+
+  const handleCanvasWheel = (event: ThreeEvent<WheelEvent>) => {
+    if (!focusTarget) return;
+    event.stopPropagation();
+    event.nativeEvent.preventDefault();
+
+    setFocusDistance((prev) =>
+      THREE.MathUtils.clamp(prev + event.deltaY * 0.0016, 0.5, 3.1),
+    );
+  };
 
   useEffect(() => {
     if (readyHandled) return;
@@ -278,14 +300,18 @@ export default function HeroSection() {
 
       {/* --- 2. R3F CANVAS --- */}
       <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
-        <Canvas camera={{ position: [0, -1.35, 4.6], fov: 60 }} onPointerMissed={() => setFocusTarget(null)}>
+        <Canvas
+          camera={{ position: [0, -1.35, 4.6], fov: 60 }}
+          onPointerMissed={() => setFocusTarget(null)}
+          onWheel={handleCanvasWheel}
+        >
           <ambientLight intensity={0.2} />
           <directionalLight position={[10, 10, 5]} intensity={2} color="#ffffff" />
           
           {/* Procedural Scene */}
           <GroundPlane />
-          <RocketModel onFocus={setFocusTarget} />
-          <CameraRig focusTarget={focusTarget} />
+          <RocketModel onFocus={handleFocus} />
+          <CameraRig focusTarget={focusTarget} focusDistance={focusDistance} />
           
           {/* Cosmic Background */}
           <CosmicSky />
