@@ -17,7 +17,6 @@ if (typeof window !== "undefined") {
 const scrollData = { progress: 0 };
 const HDR_ENV_FILE = process.env.NEXT_PUBLIC_HDR_ENV_FILE ?? '/env/envmap-min.exr';
 const ROCKET_POINT: [number, number, number] = [0.2, -2, 3.3];
-const ROCKET_FOCUS_CAMERA: [number, number, number] = [0.05, -0.55, 5.15];
 const MODEL_FILE = '/rocket.glb';
 
 function GroundPlane() {
@@ -85,28 +84,44 @@ function GroundPlane() {
 
 
 function CameraRig({ focusRocket }: { focusRocket: boolean }) {
+  const focusAmountRef = useRef(0);
+
   useFrame((state) => {
+    focusAmountRef.current = THREE.MathUtils.lerp(
+      focusAmountRef.current,
+      focusRocket ? 1 : 0,
+      0.09,
+    );
+
     // Straight low-angle framing by default.
     const baseX = state.pointer.x * 0.4;
     const baseY = THREE.MathUtils.lerp(-1.35, 1.9, scrollData.progress) + state.pointer.y * 0.28;
     const baseZ = THREE.MathUtils.lerp(4.6, -50, scrollData.progress);
 
-    const targetX = focusRocket ? ROCKET_FOCUS_CAMERA[0] + state.pointer.x * 0.08 : baseX;
-    const targetY = focusRocket ? ROCKET_FOCUS_CAMERA[1] + state.pointer.y * 0.08 : baseY;
-    const targetZ = focusRocket ? ROCKET_FOCUS_CAMERA[2] : baseZ;
+    // Aggressive close-up camera target when rocket is focused.
+    const focusX = ROCKET_POINT[0] - 0.08 + state.pointer.x * 0.06;
+    const focusY = ROCKET_POINT[1] + 0.5 + state.pointer.y * 0.05;
+    const focusZ = ROCKET_POINT[2] + 0.95;
+
+    const targetX = THREE.MathUtils.lerp(baseX, focusX, focusAmountRef.current);
+    const targetY = THREE.MathUtils.lerp(baseY, focusY, focusAmountRef.current);
+    const targetZ = THREE.MathUtils.lerp(baseZ, focusZ, focusAmountRef.current);
 
     state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.08);
     state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.08);
     state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.1);
 
-    // When focused, keep gaze locked on rocket details.
-    const lookX = focusRocket
-      ? ROCKET_POINT[0] + state.pointer.x * 0.02
-      : THREE.MathUtils.lerp(ROCKET_POINT[0], 0, scrollData.progress) + state.pointer.x * 0.1;
-    const lookY = focusRocket
-      ? ROCKET_POINT[1] + 1.1 + state.pointer.y * 0.03
-      : THREE.MathUtils.lerp(-1.45, 0, scrollData.progress) + state.pointer.y * 0.08;
-    const lookZ = focusRocket ? ROCKET_POINT[2] : THREE.MathUtils.lerp(ROCKET_POINT[2], -70, scrollData.progress);
+    const baseLookX = THREE.MathUtils.lerp(ROCKET_POINT[0], 0, scrollData.progress) + state.pointer.x * 0.1;
+    const baseLookY = THREE.MathUtils.lerp(-1.45, 0, scrollData.progress) + state.pointer.y * 0.08;
+    const baseLookZ = THREE.MathUtils.lerp(ROCKET_POINT[2], -70, scrollData.progress);
+
+    const focusLookX = ROCKET_POINT[0] + state.pointer.x * 0.02;
+    const focusLookY = ROCKET_POINT[1] + 1.28 + state.pointer.y * 0.03;
+    const focusLookZ = ROCKET_POINT[2] - 0.08;
+
+    const lookX = THREE.MathUtils.lerp(baseLookX, focusLookX, focusAmountRef.current);
+    const lookY = THREE.MathUtils.lerp(baseLookY, focusLookY, focusAmountRef.current);
+    const lookZ = THREE.MathUtils.lerp(baseLookZ, focusLookZ, focusAmountRef.current);
     state.camera.lookAt(lookX, lookY, lookZ);
   });
   return null;
@@ -139,6 +154,10 @@ function RocketModel({ onFocus }: { onFocus: () => void }) {
       position={[ROCKET_POINT[0], ROCKET_POINT[1], ROCKET_POINT[2]]}
       rotation={[0, -0.16, 0]}
       onClick={(event) => {
+        event.stopPropagation();
+        onFocus();
+      }}
+      onPointerDown={(event) => {
         event.stopPropagation();
         onFocus();
       }}
