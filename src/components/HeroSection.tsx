@@ -78,7 +78,7 @@ function MountainModel() {
   return (
     <primitive
       object={scene}
-      position={[0, -5, -45]}
+      position={[0, -2, -45]}
       scale={1}
       rotation={[0, 0, 0]}
     />
