@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
@@ -18,23 +18,64 @@ const scrollData = { progress: 0 };
 const HDR_ENV_FILE = process.env.NEXT_PUBLIC_HDR_ENV_FILE ?? '/env/envmap-min.exr';
 
 function GroundPlane() {
+  const moonGeometry = useMemo(() => {
+    const geometry = new THREE.PlaneGeometry(240, 240, 280, 280);
+    const position = geometry.attributes.position as THREE.BufferAttribute;
+
+    const randomAt = (seed: number) => {
+      const value = Math.sin(seed * 12.9898) * 43758.5453123;
+      return value - Math.floor(value);
+    };
+
+    const craters = Array.from({ length: 52 }, (_, i) => ({
+      x: (randomAt(i * 1.7 + 0.3) * 2 - 1) * 108,
+      y: (randomAt(i * 2.1 + 4.8) * 2 - 1) * 108,
+      radius: THREE.MathUtils.lerp(2.2, 15.5, randomAt(i * 3.9 + 11.7)),
+      depth: THREE.MathUtils.lerp(0.08, 0.7, randomAt(i * 5.2 + 1.1)),
+      rim: THREE.MathUtils.lerp(0.05, 0.38, randomAt(i * 4.4 + 8.5)),
+    }));
+
+    for (let i = 0; i < position.count; i++) {
+      const x = position.getX(i);
+      const y = position.getY(i);
+
+      // Low-frequency terrain variation for a lunar regolith feel.
+      let height =
+        Math.sin(x * 0.05) * Math.cos(y * 0.053) * 0.11 +
+        Math.sin((x + y) * 0.12) * 0.035 +
+        Math.cos((x - y) * 0.095) * 0.028;
+
+      for (const crater of craters) {
+        const dx = x - crater.x;
+        const dy = y - crater.y;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        const t = d / crater.radius;
+
+        if (t < 1.45) {
+          const bowl = -Math.exp(-(t * t) * 2.75) * crater.depth;
+          const rim = Math.exp(-Math.pow((t - 1.04) * 4.1, 2)) * crater.rim;
+          height += bowl + rim;
+        }
+      }
+
+      position.setZ(i, height);
+    }
+
+    position.needsUpdate = true;
+    geometry.computeVertexNormals();
+    return geometry;
+  }, []);
+
   return (
-    <group>
-      {/* A large plane for forthcoming displacement mapping */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -2, 0]}>
-        <planeGeometry args={[200, 200, 128, 128]} />
-        <meshStandardMaterial
-          color="#0a0a0f"
-          metalness={0.8}
-          roughness={0.4}
-          wireframe={false}
-          emissive="#1a1a2e"
-        />
-      </mesh>
-      
-      {/* Grid helper for scale/perspective */}
-      <gridHelper args={[200, 200, '#4a00ff', '#101020']} position={[0, -1.99, 0]} />
-    </group>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -2, 0]} geometry={moonGeometry}>
+      <meshStandardMaterial
+        color="#6e7285"
+        roughness={0.96}
+        metalness={0.04}
+        emissive="#151b29"
+        emissiveIntensity={0.2}
+      />
+    </mesh>
   );
 }
 
@@ -42,22 +83,20 @@ function GroundPlane() {
 
 function CameraRig() {
   useFrame((state) => {
-    // We fly "forward" over the ground grid. 
-    // Start at z=10, end at z=-50
-    const targetZ = THREE.MathUtils.lerp(5, -50, scrollData.progress);
-    
-    // Smoothly interpolate camera position
-    state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.1);
-    
-    // Add subtle mouse parallax
-    const targetX = (state.pointer.x * 2);
-    const targetY = (state.pointer.y * 1) + 2; // Keep camera above ground
+    // Straight low-angle framing: camera starts just above the terrain.
+    const targetX = state.pointer.x * 0.45;
+    const targetY = THREE.MathUtils.lerp(-1.35, 1.9, scrollData.progress) + state.pointer.y * 0.3;
+    const targetZ = THREE.MathUtils.lerp(4.6, -50, scrollData.progress);
 
     state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.05);
     state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.05);
-    
-    // Look slightly downward towards the horizon
-    state.camera.lookAt(0, 0, targetZ - 20);
+    state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.1);
+
+    // Keep the gaze low and straight ahead near the ground plane.
+    const lookX = state.pointer.x * 0.12;
+    const lookY = THREE.MathUtils.lerp(-1.65, 0, scrollData.progress) + state.pointer.y * 0.08;
+    const lookZ = THREE.MathUtils.lerp(-4, -70, scrollData.progress);
+    state.camera.lookAt(lookX, lookY, lookZ);
   });
   return null;
 }
@@ -173,7 +212,7 @@ export default function HeroSection() {
 
       {/* --- 2. R3F CANVAS --- */}
       <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
-        <Canvas camera={{ position: [0, 2, 5], fov: 60 }}>
+        <Canvas camera={{ position: [0, -1.35, 4.6], fov: 60 }}>
           <ambientLight intensity={0.2} />
           <directionalLight position={[10, 10, 5]} intensity={2} color="#ffffff" />
           
