@@ -87,8 +87,8 @@ function MountainModel() {
 
 function Starfield() {
   const vertices = [];
-  const count = 10000;
-  const radius = 100;
+  const count = 20000;
+  const radius = 150;
 
   for (let i = 0; i < count; i++) {
     const x = (Math.random() - 0.5) * radius * 2;
@@ -100,7 +100,7 @@ function Starfield() {
   return (
     <Points>
       <bufferGeometry attributes={{ position: new THREE.Float32BufferAttribute(vertices, 3) }} />
-      <PointMaterial color={0xffffff} size={0.1} sizeAttenuation />
+      <PointMaterial color={0xffffff} size={0.2} sizeAttenuation />
     </Points>
   );
 }
