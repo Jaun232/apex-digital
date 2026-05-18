@@ -16,120 +16,45 @@ if (typeof window !== "undefined") {
 // Global scroll state to pass data between GSAP and R3F
 const scrollData = { progress: 0 };
 const HDR_ENV_FILE = process.env.NEXT_PUBLIC_HDR_ENV_FILE ?? '/env/envmap-min.exr';
-const ROCKET_POINT: [number, number, number] = [0, -2, 3.55];
-const MODEL_FILE = '/free_sci-fi_vehicle_002_-_public_domain_cc0.glb';
+const FLOOR_MODEL_FILE = '/the_moon_-_mare_vaporum_dome.glb';
+const SUN_LIGHT_POSITION: [number, number, number] = [-14, 9, 0];
 
-type FocusTarget = {
-  position: [number, number, number];
-  radius: number;
-};
+function MoonFloorModel() {
+  const { scene } = useGLTF(FLOOR_MODEL_FILE);
+  const moon = useMemo(() => scene.clone(true), [scene]);
+  const { scaleFactor, yOffset } = useMemo(() => {
+    const box = new THREE.Box3().setFromObject(moon);
+    const size = new THREE.Vector3();
+    box.getSize(size);
 
-function GroundPlane() {
-  const moonGeometry = useMemo(() => {
-    const geometry = new THREE.PlaneGeometry(240, 240, 280, 280);
-    const position = geometry.attributes.position as THREE.BufferAttribute;
+    const targetSpan = 240;
+    const span = Math.max(size.x, size.z, 1);
+    const scaleFactor = targetSpan / span;
+    const yOffset = -box.max.y * scaleFactor;
+    return { scaleFactor, yOffset };
+  }, [moon]);
 
-    const randomAt = (seed: number) => {
-      const value = Math.sin(seed * 12.9898) * 43758.5453123;
-      return value - Math.floor(value);
-    };
-
-    const craters = Array.from({ length: 52 }, (_, i) => ({
-      x: (randomAt(i * 1.7 + 0.3) * 2 - 1) * 108,
-      y: (randomAt(i * 2.1 + 4.8) * 2 - 1) * 108,
-      radius: THREE.MathUtils.lerp(2.2, 15.5, randomAt(i * 3.9 + 11.7)),
-      depth: THREE.MathUtils.lerp(0.08, 0.7, randomAt(i * 5.2 + 1.1)),
-      rim: THREE.MathUtils.lerp(0.05, 0.38, randomAt(i * 4.4 + 8.5)),
-    }));
-
-    for (let i = 0; i < position.count; i++) {
-      const x = position.getX(i);
-      const y = position.getY(i);
-
-      // Low-frequency terrain variation for a lunar regolith feel.
-      let height =
-        Math.sin(x * 0.05) * Math.cos(y * 0.053) * 0.11 +
-        Math.sin((x + y) * 0.12) * 0.035 +
-        Math.cos((x - y) * 0.095) * 0.028;
-
-      for (const crater of craters) {
-        const dx = x - crater.x;
-        const dy = y - crater.y;
-        const d = Math.sqrt(dx * dx + dy * dy);
-        const t = d / crater.radius;
-
-        if (t < 1.45) {
-          const bowl = -Math.exp(-(t * t) * 2.75) * crater.depth;
-          const rim = Math.exp(-Math.pow((t - 1.04) * 4.1, 2)) * crater.rim;
-          height += bowl + rim;
-        }
+  useEffect(() => {
+    moon.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      child.castShadow = false;
+      child.receiveShadow = true;
+      if (child.material instanceof THREE.MeshStandardMaterial) {
+        child.material.roughness = Math.min(1, child.material.roughness + 0.18);
+        child.material.metalness = Math.max(0, child.material.metalness - 0.1);
       }
-
-      position.setZ(i, height);
-    }
-
-    position.needsUpdate = true;
-    geometry.computeVertexNormals();
-    return geometry;
-  }, []);
+    });
+  }, [moon]);
 
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -2, 0]} geometry={moonGeometry}>
-      <meshStandardMaterial
-        color="#6e7285"
-        roughness={0.96}
-        metalness={0.04}
-        emissive="#151b29"
-        emissiveIntensity={0.2}
-      />
-    </mesh>
+    <group position={[0, -2, 0]} rotation={[0, -0.24, 0]}>
+      <primitive object={moon} scale={scaleFactor} position={[0, yOffset, 0]} />
+    </group>
   );
 }
 
-
-
-function CameraRig({
-  focusTarget,
-  focusDistance,
-}: {
-  focusTarget: FocusTarget | null;
-  focusDistance: number;
-}) {
-  const centerRef = useRef(new THREE.Vector3());
-  const toCameraRef = useRef(new THREE.Vector3());
-  const targetPositionRef = useRef(new THREE.Vector3());
-  const lookAtRef = useRef(new THREE.Vector3());
-
+function CameraRig() {
   useFrame((state) => {
-    if (focusTarget) {
-      // True object focus: frame the selected object's world center and size.
-      const [fx, fy, fz] = focusTarget.position;
-      const focusRadius = Math.max(0.45, focusTarget.radius);
-      const focusRange = THREE.MathUtils.clamp(focusRadius * focusDistance, 0.85, 5.4);
-
-      const center = centerRef.current.set(fx, fy + focusRadius * 0.22, fz);
-      const toCamera = toCameraRef.current
-        .set(state.camera.position.x - fx, state.camera.position.y - fy, state.camera.position.z - fz)
-        .normalize();
-
-      // Prevent near-vertical lift while keeping a slight top-down read.
-      toCamera.y = THREE.MathUtils.clamp(toCamera.y, -0.28, 0.42);
-      toCamera.normalize();
-
-      const targetPosition = targetPositionRef.current
-        .copy(center)
-        .addScaledVector(toCamera, focusRange)
-        .add(new THREE.Vector3(state.pointer.x * 0.04, state.pointer.y * 0.03, 0));
-
-      state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetPosition.x, 0.16);
-      state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetPosition.y, 0.16);
-      state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetPosition.z, 0.18);
-
-      const lookAt = lookAtRef.current.copy(center);
-      state.camera.lookAt(lookAt);
-      return;
-    }
-
     // Straight low-angle framing by default.
     const baseX = state.pointer.x * 0.4;
     const baseY = THREE.MathUtils.lerp(-1.35, 1.9, scrollData.progress) + state.pointer.y * 0.28;
@@ -139,66 +64,12 @@ function CameraRig({
     state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, baseY, 0.08);
     state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, baseZ, 0.1);
 
-    const lookX = THREE.MathUtils.lerp(ROCKET_POINT[0], 0, scrollData.progress) + state.pointer.x * 0.1;
+    const lookX = state.pointer.x * 0.1;
     const lookY = THREE.MathUtils.lerp(-1.45, 0, scrollData.progress) + state.pointer.y * 0.08;
-    const lookZ = THREE.MathUtils.lerp(ROCKET_POINT[2], -70, scrollData.progress);
+    const lookZ = THREE.MathUtils.lerp(-4, -70, scrollData.progress);
     state.camera.lookAt(lookX, lookY, lookZ);
   });
   return null;
-}
-
-function RocketModel({ onFocus }: { onFocus: (target: FocusTarget) => void }) {
-  const { scene } = useGLTF(MODEL_FILE);
-  const rocket = useMemo(() => scene.clone(true), [scene]);
-  const groupRef = useRef<THREE.Group>(null);
-  const { scaleFactor, yOffset } = useMemo(() => {
-    const box = new THREE.Box3().setFromObject(rocket);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-
-    const targetHeight = 2.8;
-    const scaleFactor = size.y > 0 ? targetHeight / size.y : 1;
-    const yOffset = -box.min.y * scaleFactor;
-    return { scaleFactor, yOffset };
-  }, [rocket]);
-
-  useEffect(() => {
-    rocket.traverse((child) => {
-      if (!(child instanceof THREE.Mesh)) return;
-      child.castShadow = true;
-      child.receiveShadow = true;
-    });
-  }, [rocket]);
-
-  const handleSelect = (event: { stopPropagation: () => void }) => {
-    event.stopPropagation();
-    const group = groupRef.current;
-    if (!group) return;
-
-    group.updateWorldMatrix(true, true);
-    const box = new THREE.Box3().setFromObject(group);
-    const center = new THREE.Vector3();
-    const sphere = new THREE.Sphere();
-    box.getCenter(center);
-    box.getBoundingSphere(sphere);
-
-    onFocus({
-      position: [center.x, center.y, center.z],
-      radius: sphere.radius,
-    });
-  };
-
-  return (
-    <group
-      ref={groupRef}
-      position={[ROCKET_POINT[0], ROCKET_POINT[1], ROCKET_POINT[2]]}
-      rotation={[0, -0.16, 0]}
-      onClick={handleSelect}
-      onPointerDown={handleSelect}
-    >
-      <primitive object={rocket} scale={scaleFactor} position={[0, yOffset, 0]} />
-    </group>
-  );
 }
 
 export default function HeroSection() {
@@ -207,23 +78,6 @@ export default function HeroSection() {
   const { active: assetsLoading, progress: loadProgress } = useProgress();
   const [showLoader, setShowLoader] = useState(true);
   const [readyHandled, setReadyHandled] = useState(false);
-  const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
-  const [focusDistance, setFocusDistance] = useState(1.22);
-
-  const handleFocus = (target: FocusTarget) => {
-    setFocusTarget(target);
-    setFocusDistance(1.22);
-  };
-
-  const handleCanvasWheel = (event: React.WheelEvent<HTMLDivElement>) => {
-    if (!focusTarget) return;
-    event.stopPropagation();
-    event.preventDefault();
-
-    setFocusDistance((prev) =>
-      THREE.MathUtils.clamp(prev + event.deltaY * 0.0016, 0.5, 3.1),
-    );
-  };
 
   useEffect(() => {
     if (readyHandled) return;
@@ -318,21 +172,16 @@ export default function HeroSection() {
 
       {/* --- 2. R3F CANVAS --- */}
       <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
-        <Canvas
-          camera={{ position: [0, -1.35, 4.6], fov: 60 }}
-          onPointerMissed={() => setFocusTarget(null)}
-          onWheel={handleCanvasWheel}
-        >
+        <Canvas camera={{ position: [0, -1.35, 4.6], fov: 60 }}>
           <ambientLight intensity={0.2} />
-          <directionalLight position={[10, 10, 5]} intensity={2} color="#ffffff" />
+          <directionalLight position={SUN_LIGHT_POSITION} intensity={2} color="#ffffff" />
           
           {/* Procedural Scene */}
-          <GroundPlane />
-          <RocketModel onFocus={handleFocus} />
-          <CameraRig focusTarget={focusTarget} focusDistance={focusDistance} />
+          <MoonFloorModel />
+          <CameraRig />
           
           {/* Cosmic Background */}
-          <CosmicSky />
+          <CosmicSky sunLightPosition={SUN_LIGHT_POSITION} />
           
           {/* Environment map for reflections; override with NEXT_PUBLIC_HDR_ENV_FILE if needed */}
           <Environment files={HDR_ENV_FILE} />
@@ -408,4 +257,4 @@ export default function HeroSection() {
   );
 }
 
-useGLTF.preload(MODEL_FILE);
+useGLTF.preload(FLOOR_MODEL_FILE);

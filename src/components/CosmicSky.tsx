@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useMemo, useRef } from 'react';
-import { Stars } from '@react-three/drei';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Stars, useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -16,6 +16,13 @@ type NebulaCloud = {
 
 const TOP_COLOR = new THREE.Color('#0b031e');
 const BOTTOM_COLOR = new THREE.Color('#020208');
+const JUPITER_MODEL_FILE = '/jupiter.glb';
+const JUPITER_BASE_YAW = THREE.MathUtils.degToRad(70);
+const DEFAULT_SUN_LIGHT_POSITION: [number, number, number] = [10, 10, 5];
+
+type CosmicSkyProps = {
+  sunLightPosition?: [number, number, number];
+};
 
 const NEBULA_VERTEX_SHADER = `
   varying vec2 vUv;
@@ -284,12 +291,94 @@ function NebulaClouds() {
   );
 }
 
-export default function CosmicSky() {
+type JupiterPlanetProps = {
+  sunDirection: THREE.Vector3;
+};
+
+function JupiterPlanet({ sunDirection }: JupiterPlanetProps) {
+  const groupRef = useRef<THREE.Group>(null);
+  const { scene } = useGLTF(JUPITER_MODEL_FILE);
+  const planet = useMemo(() => scene.clone(true), [scene]);
+
+  const scaleFactor = useMemo(() => {
+    const box = new THREE.Box3().setFromObject(planet);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const span = Math.max(size.x, size.y, size.z, 1);
+    return 96 / span;
+  }, [planet]);
+
+  useEffect(() => {
+    planet.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      materials.forEach((material) => {
+        if (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial) {
+          material.emissive = new THREE.Color('#0a1020');
+          material.emissiveIntensity = 0.0;
+          material.roughness = Math.min(1, material.roughness + 0.1);
+          material.metalness = Math.max(0, material.metalness - 0.05);
+          material.envMapIntensity = 0.08;
+
+          // Force a pronounced planetary terminator so one hemisphere stays visibly dark.
+          material.onBeforeCompile = (shader) => {
+            shader.uniforms.uSunDirection = { value: sunDirection.clone() };
+            shader.fragmentShader = shader.fragmentShader.replace(
+              '#include <common>',
+              '#include <common>\nuniform vec3 uSunDirection;\nvarying vec3 vWorldNormal;',
+            );
+            shader.vertexShader = shader.vertexShader.replace(
+              '#include <common>',
+              '#include <common>\nvarying vec3 vWorldNormal;',
+            );
+            shader.vertexShader = shader.vertexShader.replace(
+              '#include <worldpos_vertex>',
+              '#include <worldpos_vertex>\nvWorldNormal = normalize(mat3(modelMatrix) * normal);',
+            );
+            shader.fragmentShader = shader.fragmentShader.replace(
+              'gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
+              `
+                float sunFacing = dot(normalize(vWorldNormal), normalize(uSunDirection));
+                float nightMask = step(sunFacing, 0.0);
+                vec3 finalLight = outgoingLight * (1.0 - nightMask);
+                gl_FragColor = vec4(finalLight, diffuseColor.a);
+              `,
+            );
+          };
+          material.customProgramCacheKey = () => 'jupiter-terminator-v3';
+          material.needsUpdate = true;
+        }
+      });
+    });
+  }, [planet, sunDirection]);
+
+  useFrame(({ clock }) => {
+    if (!groupRef.current) return;
+    const t = clock.getElapsedTime();
+    groupRef.current.rotation.y = JUPITER_BASE_YAW + Math.sin(t * 0.09) * 0.035;
+    groupRef.current.position.y = 62 + Math.sin(t * 0.2) * 2.2;
+  });
+
+  return (
+    <group ref={groupRef} position={[92, 62, -410]} rotation={[0.1, JUPITER_BASE_YAW, -0.02]}>
+      <primitive object={planet} scale={scaleFactor} />
+    </group>
+  );
+}
+
+export default function CosmicSky({ sunLightPosition = DEFAULT_SUN_LIGHT_POSITION }: CosmicSkyProps) {
+  const sunDirection = useMemo(() => {
+    const dir = new THREE.Vector3(...sunLightPosition);
+    if (dir.lengthSq() < 1e-6) return new THREE.Vector3(0.7, 0.4, 0.5).normalize();
+    return dir.normalize();
+  }, [sunLightPosition]);
+
   return (
     <group>
       <CosmicGradient />
       <VolumetricNebula />
       <NebulaClouds />
+      <JupiterPlanet sunDirection={sunDirection} />
       <Stars
         radius={100}
         depth={50}
@@ -311,3 +400,5 @@ export default function CosmicSky() {
     </group>
   );
 }
+
+useGLTF.preload(JUPITER_MODEL_FILE);
