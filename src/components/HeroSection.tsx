@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Environment, useGLTF, Points, PointMaterial } from '@react-three/drei';
+import { Environment, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
+import CosmicSky from './CosmicSky';
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -82,74 +83,6 @@ function MountainModel() {
       scale={1}
       rotation={[0, 0, 0]}
     />
-  );
-}
-
-function Starfield() {
-  const { vertices, colors } = useMemo(() => {
-    const v = [];
-    const c = [];
-    const count = 10000;
-    const radius = 400;
-    const starColors = ['#ffffff', '#ffe9c4', '#d4fbff', '#ffd1ff', '#c4dfff'];
-
-    for (let i = 0; i < count; i++) {
-      const theta = Math.random() * 2 * Math.PI;
-      const phi = Math.acos(2 * Math.random() - 1);
-      
-      const x = radius * Math.sin(phi) * Math.cos(theta);
-      const y = radius * Math.cos(phi);
-      const z = radius * Math.sin(phi) * Math.sin(theta);
-      
-      if (y > -2) {
-        v.push(x, y, z);
-        const color = new THREE.Color(starColors[Math.floor(Math.random() * starColors.length)]);
-        c.push(color.r, color.g, color.b);
-      }
-    }
-    return { vertices: new Float32Array(v), colors: new Float32Array(c) };
-  }, []);
-
-  return (
-    <Points>
-      <bufferGeometry attach="geometry">
-        <bufferAttribute
-          attach="attributes-position"
-          array={vertices}
-          itemSize={3}
-        />
-        <bufferAttribute
-          attach="attributes-color"
-          array={colors}
-          itemSize={3}
-        />
-      </bufferGeometry>
-      <PointMaterial
-        attach="material"
-        transparent
-        opacity={0.8}
-        vertexColors={true}
-        size={1.5}
-        sizeAttenuation={false}
-        depthTest={false}
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-      />
-    </Points>
-  );
-}
-
-function CosmicSky() {
-  const texture = useMemo(() => new THREE.TextureLoader().load('/aron-visuals-NYwZhS4afQc-unsplash.jpg'), []);
-  
-  return (
-    <mesh scale={[-1, 1, 1]}>
-      <sphereGeometry args={[500, 64, 64]} />
-      <meshBasicMaterial
-        side={THREE.BackSide}
-        map={texture}
-      />
-    </mesh>
   );
 }
 
@@ -250,7 +183,6 @@ export default function HeroSection() {
           
           {/* Cosmic Background */}
           <CosmicSky />
-          <Starfield />
           
           {/* Environment maps for reflections */}
           <Environment preset="city" />
