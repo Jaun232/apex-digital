@@ -17,6 +17,7 @@ if (typeof window !== "undefined") {
 const scrollData = { progress: 0 };
 const HDR_ENV_FILE = process.env.NEXT_PUBLIC_HDR_ENV_FILE ?? '/env/envmap-min.exr';
 const ROCKET_POINT: [number, number, number] = [0.2, -2, 3.3];
+const MODEL_FILE = '/rocket.glb';
 
 function GroundPlane() {
   const moonGeometry = useMemo(() => {
@@ -104,7 +105,7 @@ function CameraRig() {
 }
 
 function RocketModel() {
-  const { scene } = useGLTF('/rocket.glb');
+  const { scene } = useGLTF(MODEL_FILE);
   const rocket = useMemo(() => scene.clone(true), [scene]);
   const { scaleFactor, yOffset } = useMemo(() => {
     const box = new THREE.Box3().setFromObject(rocket);
@@ -318,4 +319,4 @@ export default function HeroSection() {
   );
 }
 
-useGLTF.preload('/rocket.glb');
+useGLTF.preload(MODEL_FILE);
