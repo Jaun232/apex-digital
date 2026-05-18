@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Environment, useGLTF } from '@react-three/drei';
+import { Environment, useGLTF, Points, PointMaterial } from '@react-three/drei';
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -62,7 +62,7 @@ function CameraRig() {
 
 function MountainModel() {
   const { scene } = useGLTF('/mountain-optimized.glb');
-  
+   
   React.useEffect(() => {
     const box = new THREE.Box3().setFromObject(scene);
     const size = new THREE.Vector3();
@@ -74,7 +74,7 @@ function MountainModel() {
       center: { x: center.x, y: center.y, z: center.z }
     });
   }, [scene]);
-  
+   
   return (
     <primitive
       object={scene}
@@ -82,6 +82,26 @@ function MountainModel() {
       scale={1}
       rotation={[0, 0, 0]}
     />
+  );
+}
+
+function Starfield() {
+  const vertices = [];
+  const count = 10000;
+  const radius = 100;
+
+  for (let i = 0; i < count; i++) {
+    const x = (Math.random() - 0.5) * radius * 2;
+    const y = (Math.random() - 0.5) * radius * 2;
+    const z = (Math.random() - 0.5) * radius * 2;
+    vertices.push(x, y, z);
+  }
+
+  return (
+    <points>
+      <bufferGeometry attributes={{ position: new THREE.Float32BufferAttribute(vertices, 3) }} />
+      <pointMaterial color={0xffffff} size={0.1} sizeAttenuation />
+    </points>
   );
 }
 
@@ -179,6 +199,9 @@ export default function HeroSection() {
           <GroundPlane />
           <MountainModel />
           <CameraRig />
+          
+          {/* Night Sky Starfield */}
+          <Starfield />
           
           {/* Environment maps for reflections */}
           <Environment preset="city" />
