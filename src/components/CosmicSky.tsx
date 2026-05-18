@@ -11,10 +11,39 @@ type NebulaCloud = {
   scale: [number, number, number];
   color: string;
   opacity: number;
+  feather: number;
 };
 
 const TOP_COLOR = new THREE.Color('#0b031e');
 const BOTTOM_COLOR = new THREE.Color('#020208');
+const NEBULA_VERTEX_SHADER = `
+  varying vec2 vUv;
+
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const NEBULA_FRAGMENT_SHADER = `
+  uniform vec3 uColor;
+  uniform float uOpacity;
+  uniform float uFeather;
+  varying vec2 vUv;
+
+  void main() {
+    vec2 centeredUv = vUv - 0.5;
+    float distanceToCenter = length(centeredUv) * 2.0;
+
+    // Round cloud silhouette with soft feathered edge.
+    float softMask = 1.0 - smoothstep(uFeather, 1.0, distanceToCenter);
+    float grain = 0.85 + 0.15 * sin(vUv.x * 48.0) * cos(vUv.y * 36.0);
+    float alpha = softMask * grain * uOpacity;
+
+    if (alpha < 0.001) discard;
+    gl_FragColor = vec4(uColor, alpha);
+  }
+`;
 
 function CosmicGradient() {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
@@ -78,6 +107,7 @@ function NebulaClouds() {
         scale: [64, 34, 1],
         color: '#ff1fd1',
         opacity: 0.09,
+        feather: 0.48,
       },
       {
         position: [24, 14, -68],
@@ -85,6 +115,7 @@ function NebulaClouds() {
         scale: [58, 30, 1],
         color: '#12e8ff',
         opacity: 0.08,
+        feather: 0.45,
       },
       {
         position: [-6, 6, -58],
@@ -92,6 +123,7 @@ function NebulaClouds() {
         scale: [70, 42, 1],
         color: '#ff57f1',
         opacity: 0.06,
+        feather: 0.5,
       },
     ],
     [],
@@ -111,15 +143,21 @@ function NebulaClouds() {
           rotation={cloud.rotation}
           scale={cloud.scale}
         >
-          <planeGeometry args={[1, 1, 1, 1]} />
-          <meshBasicMaterial
-            color={cloud.color}
+          <planeGeometry args={[1, 1, 12, 12]} />
+          <shaderMaterial
             transparent
-            opacity={cloud.opacity}
-            blending={THREE.AdditiveBlending}
             depthWrite={false}
+            depthTest={false}
+            blending={THREE.AdditiveBlending}
             side={THREE.DoubleSide}
             toneMapped={false}
+            uniforms={{
+              uColor: { value: new THREE.Color(cloud.color) },
+              uOpacity: { value: cloud.opacity },
+              uFeather: { value: cloud.feather },
+            }}
+            vertexShader={NEBULA_VERTEX_SHADER}
+            fragmentShader={NEBULA_FRAGMENT_SHADER}
           />
         </mesh>
       ))}

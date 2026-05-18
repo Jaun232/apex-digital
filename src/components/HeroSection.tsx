@@ -15,6 +15,7 @@ if (typeof window !== "undefined") {
 
 // Global scroll state to pass data between GSAP and R3F
 const scrollData = { progress: 0 };
+const HDR_ENV_FILE = process.env.NEXT_PUBLIC_HDR_ENV_FILE ?? '/env/envmap-min.exr';
 
 function GroundPlane() {
   return (
@@ -184,8 +185,8 @@ export default function HeroSection() {
           {/* Cosmic Background */}
           <CosmicSky />
           
-          {/* Environment maps for reflections */}
-          <Environment preset="city" />
+          {/* Environment map for reflections; override with NEXT_PUBLIC_HDR_ENV_FILE if needed */}
+          <Environment files={HDR_ENV_FILE} />
         </Canvas>
       </div>
       {/* ----------------------- */}
