@@ -95,20 +95,38 @@ function CameraRig({
   focusTarget: FocusTarget | null;
   focusDistance: number;
 }) {
+  const centerRef = useRef(new THREE.Vector3());
+  const toCameraRef = useRef(new THREE.Vector3());
+  const targetPositionRef = useRef(new THREE.Vector3());
+  const lookAtRef = useRef(new THREE.Vector3());
+
   useFrame((state) => {
     if (focusTarget) {
       // True object focus: frame the selected object's world center and size.
       const [fx, fy, fz] = focusTarget.position;
       const focusRadius = Math.max(0.45, focusTarget.radius);
-      const targetX = fx + state.pointer.x * 0.03;
-      const targetY = fy + focusRadius * 0.42 + state.pointer.y * 0.03;
-      const targetZ = fz + focusRadius * focusDistance;
+      const focusRange = THREE.MathUtils.clamp(focusRadius * focusDistance, 0.85, 5.4);
 
-      state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.18);
-      state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.18);
-      state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.2);
+      const center = centerRef.current.set(fx, fy + focusRadius * 0.22, fz);
+      const toCamera = toCameraRef.current
+        .set(state.camera.position.x - fx, state.camera.position.y - fy, state.camera.position.z - fz)
+        .normalize();
 
-      state.camera.lookAt(fx, fy + focusRadius * 0.3, fz);
+      // Prevent near-vertical lift while keeping a slight top-down read.
+      toCamera.y = THREE.MathUtils.clamp(toCamera.y, -0.28, 0.42);
+      toCamera.normalize();
+
+      const targetPosition = targetPositionRef.current
+        .copy(center)
+        .addScaledVector(toCamera, focusRange)
+        .add(new THREE.Vector3(state.pointer.x * 0.04, state.pointer.y * 0.03, 0));
+
+      state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetPosition.x, 0.16);
+      state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetPosition.y, 0.16);
+      state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetPosition.z, 0.18);
+
+      const lookAt = lookAtRef.current.copy(center);
+      state.camera.lookAt(lookAt);
       return;
     }
 
@@ -160,13 +178,13 @@ function RocketModel({ onFocus }: { onFocus: (target: FocusTarget) => void }) {
     group.updateWorldMatrix(true, true);
     const box = new THREE.Box3().setFromObject(group);
     const center = new THREE.Vector3();
-    const size = new THREE.Vector3();
+    const sphere = new THREE.Sphere();
     box.getCenter(center);
-    box.getSize(size);
+    box.getBoundingSphere(sphere);
 
     onFocus({
       position: [center.x, center.y, center.z],
-      radius: size.length() * 0.5,
+      radius: sphere.radius,
     });
   };
 
