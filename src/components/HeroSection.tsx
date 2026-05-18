@@ -84,44 +84,33 @@ function GroundPlane() {
 
 
 function CameraRig({ focusRocket }: { focusRocket: boolean }) {
-  const focusAmountRef = useRef(0);
-
   useFrame((state) => {
-    focusAmountRef.current = THREE.MathUtils.lerp(
-      focusAmountRef.current,
-      focusRocket ? 1 : 0,
-      0.09,
-    );
+    if (focusRocket) {
+      // Hard focus mode: override scroll path and push camera to rocket details.
+      const targetX = ROCKET_POINT[0] - 0.08 + state.pointer.x * 0.04;
+      const targetY = ROCKET_POINT[1] + 0.9 + state.pointer.y * 0.04;
+      const targetZ = ROCKET_POINT[2] + 1.35;
+
+      state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.12);
+      state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.12);
+      state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.14);
+
+      state.camera.lookAt(ROCKET_POINT[0], ROCKET_POINT[1] + 1.08, ROCKET_POINT[2] - 0.2);
+      return;
+    }
 
     // Straight low-angle framing by default.
     const baseX = state.pointer.x * 0.4;
     const baseY = THREE.MathUtils.lerp(-1.35, 1.9, scrollData.progress) + state.pointer.y * 0.28;
     const baseZ = THREE.MathUtils.lerp(4.6, -50, scrollData.progress);
 
-    // Aggressive close-up camera target when rocket is focused.
-    const focusX = ROCKET_POINT[0] - 0.08 + state.pointer.x * 0.06;
-    const focusY = ROCKET_POINT[1] + 0.5 + state.pointer.y * 0.05;
-    const focusZ = ROCKET_POINT[2] + 0.95;
+    state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, baseX, 0.08);
+    state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, baseY, 0.08);
+    state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, baseZ, 0.1);
 
-    const targetX = THREE.MathUtils.lerp(baseX, focusX, focusAmountRef.current);
-    const targetY = THREE.MathUtils.lerp(baseY, focusY, focusAmountRef.current);
-    const targetZ = THREE.MathUtils.lerp(baseZ, focusZ, focusAmountRef.current);
-
-    state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, targetX, 0.08);
-    state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.08);
-    state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.1);
-
-    const baseLookX = THREE.MathUtils.lerp(ROCKET_POINT[0], 0, scrollData.progress) + state.pointer.x * 0.1;
-    const baseLookY = THREE.MathUtils.lerp(-1.45, 0, scrollData.progress) + state.pointer.y * 0.08;
-    const baseLookZ = THREE.MathUtils.lerp(ROCKET_POINT[2], -70, scrollData.progress);
-
-    const focusLookX = ROCKET_POINT[0] + state.pointer.x * 0.02;
-    const focusLookY = ROCKET_POINT[1] + 1.28 + state.pointer.y * 0.03;
-    const focusLookZ = ROCKET_POINT[2] - 0.08;
-
-    const lookX = THREE.MathUtils.lerp(baseLookX, focusLookX, focusAmountRef.current);
-    const lookY = THREE.MathUtils.lerp(baseLookY, focusLookY, focusAmountRef.current);
-    const lookZ = THREE.MathUtils.lerp(baseLookZ, focusLookZ, focusAmountRef.current);
+    const lookX = THREE.MathUtils.lerp(ROCKET_POINT[0], 0, scrollData.progress) + state.pointer.x * 0.1;
+    const lookY = THREE.MathUtils.lerp(-1.45, 0, scrollData.progress) + state.pointer.y * 0.08;
+    const lookZ = THREE.MathUtils.lerp(ROCKET_POINT[2], -70, scrollData.progress);
     state.camera.lookAt(lookX, lookY, lookZ);
   });
   return null;
@@ -268,10 +257,7 @@ export default function HeroSection() {
 
       {/* --- 2. R3F CANVAS --- */}
       <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
-        <Canvas
-          camera={{ position: [0, -1.35, 4.6], fov: 60 }}
-          onPointerMissed={() => setFocusRocket(false)}
-        >
+        <Canvas camera={{ position: [0, -1.35, 4.6], fov: 60 }}>
           <ambientLight intensity={0.2} />
           <directionalLight position={[10, 10, 5]} intensity={2} color="#ffffff" />
           
