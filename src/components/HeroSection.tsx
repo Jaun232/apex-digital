@@ -98,10 +98,10 @@ function Starfield() {
   }
 
   return (
-    <points>
+    <Points>
       <bufferGeometry attributes={{ position: new THREE.Float32BufferAttribute(vertices, 3) }} />
-      <pointMaterial color={0xffffff} size={0.1} sizeAttenuation />
-    </points>
+      <PointMaterial color={0xffffff} size={0.1} sizeAttenuation />
+    </Points>
   );
 }
 
