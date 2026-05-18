@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, ThreeEvent, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment, useGLTF, useProgress } from '@react-three/drei';
 import * as THREE from 'three';
 import gsap from 'gsap';
@@ -197,10 +197,10 @@ export default function HeroSection() {
     setFocusDistance(1.22);
   };
 
-  const handleCanvasWheel = (event: ThreeEvent<WheelEvent>) => {
+  const handleCanvasWheel = (event: React.WheelEvent<HTMLDivElement>) => {
     if (!focusTarget) return;
     event.stopPropagation();
-    event.nativeEvent.preventDefault();
+    event.preventDefault();
 
     setFocusDistance((prev) =>
       THREE.MathUtils.clamp(prev + event.deltaY * 0.0016, 0.5, 3.1),
