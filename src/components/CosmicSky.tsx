@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef } from 'react';
-import { Stars, useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -16,13 +15,6 @@ type NebulaCloud = {
 
 const TOP_COLOR = new THREE.Color('#0b031e');
 const BOTTOM_COLOR = new THREE.Color('#020208');
-const JUPITER_MODEL_FILE = '/jupiter.glb';
-const JUPITER_BASE_YAW = THREE.MathUtils.degToRad(70);
-const DEFAULT_SUN_LIGHT_POSITION: [number, number, number] = [10, 10, 5];
-
-type CosmicSkyProps = {
-  sunLightPosition?: [number, number, number];
-};
 
 const NEBULA_VERTEX_SHADER = `
   varying vec2 vUv;
@@ -207,7 +199,7 @@ function VolumetricNebula() {
         transparent
         blending={THREE.AdditiveBlending}
         depthWrite={false}
-        depthTest={false}
+        depthTest
         side={THREE.BackSide}
         toneMapped={false}
         uniforms={{
@@ -228,7 +220,7 @@ function NebulaClouds() {
   const clouds = useMemo<NebulaCloud[]>(
     () => [
       {
-        position: [-120, 78, -285],
+        position: [-120, 78, -720],
         rotation: [0.08, -0.46, 0.18],
         scale: [240, 138, 1],
         color: '#ff31d8',
@@ -236,7 +228,7 @@ function NebulaClouds() {
         feather: 0.4,
       },
       {
-        position: [130, 56, -265],
+        position: [130, 56, -690],
         rotation: [-0.12, 0.34, -0.14],
         scale: [215, 122, 1],
         color: '#12e8ff',
@@ -244,7 +236,7 @@ function NebulaClouds() {
         feather: 0.42,
       },
       {
-        position: [12, 30, -308],
+        position: [12, 30, -760],
         rotation: [0.04, -0.21, 0.24],
         scale: [272, 152, 1],
         color: '#fc5dff',
@@ -273,7 +265,7 @@ function NebulaClouds() {
           <shaderMaterial
             transparent
             depthWrite={false}
-            depthTest={false}
+            depthTest
             blending={THREE.AdditiveBlending}
             side={THREE.DoubleSide}
             toneMapped={false}
@@ -291,114 +283,186 @@ function NebulaClouds() {
   );
 }
 
-type JupiterPlanetProps = {
-  sunDirection: THREE.Vector3;
-};
+function PatchyStars() {
+  const starSprite = useMemo(() => {
+    const size = 64;
+    const data = new Uint8Array(size * size * 4);
 
-function JupiterPlanet({ sunDirection }: JupiterPlanetProps) {
-  const groupRef = useRef<THREE.Group>(null);
-  const { scene } = useGLTF(JUPITER_MODEL_FILE);
-  const planet = useMemo(() => scene.clone(true), [scene]);
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const u = (x + 0.5) / size * 2 - 1;
+        const v = (y + 0.5) / size * 2 - 1;
+        const d = Math.sqrt(u * u + v * v);
+        const falloff = Math.max(0, 1 - d);
+        const alpha = Math.pow(falloff, 2.3);
+        const i = (y * size + x) * 4;
+        data[i] = 255;
+        data[i + 1] = 255;
+        data[i + 2] = 255;
+        data[i + 3] = Math.round(alpha * 255);
+      }
+    }
 
-  const scaleFactor = useMemo(() => {
-    const box = new THREE.Box3().setFromObject(planet);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    const span = Math.max(size.x, size.y, size.z, 1);
-    return 96 / span;
-  }, [planet]);
+    const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+    texture.needsUpdate = true;
+    texture.magFilter = THREE.LinearFilter;
+    texture.minFilter = THREE.LinearFilter;
+    texture.generateMipmaps = false;
+    return texture;
+  }, []);
 
   useEffect(() => {
-    planet.traverse((child) => {
-      if (!(child instanceof THREE.Mesh)) return;
-      const materials = Array.isArray(child.material) ? child.material : [child.material];
-      materials.forEach((material) => {
-        if (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial) {
-          material.emissive = new THREE.Color('#0a1020');
-          material.emissiveIntensity = 0.0;
-          material.roughness = Math.min(1, material.roughness + 0.1);
-          material.metalness = Math.max(0, material.metalness - 0.05);
-          material.envMapIntensity = 0.08;
+    return () => {
+      starSprite.dispose();
+    };
+  }, [starSprite]);
 
-          // Force a pronounced planetary terminator so one hemisphere stays visibly dark.
-          material.onBeforeCompile = (shader) => {
-            shader.uniforms.uSunDirection = { value: sunDirection.clone() };
-            shader.fragmentShader = shader.fragmentShader.replace(
-              '#include <common>',
-              '#include <common>\nuniform vec3 uSunDirection;\nvarying vec3 vWorldNormal;',
-            );
-            shader.vertexShader = shader.vertexShader.replace(
-              '#include <common>',
-              '#include <common>\nvarying vec3 vWorldNormal;',
-            );
-            shader.vertexShader = shader.vertexShader.replace(
-              '#include <worldpos_vertex>',
-              '#include <worldpos_vertex>\nvWorldNormal = normalize(mat3(modelMatrix) * normal);',
-            );
-            shader.fragmentShader = shader.fragmentShader.replace(
-              'gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
-              `
-                float sunFacing = dot(normalize(vWorldNormal), normalize(uSunDirection));
-                float nightMask = step(sunFacing, 0.0);
-                vec3 finalLight = outgoingLight * (1.0 - nightMask);
-                gl_FragColor = vec4(finalLight, diffuseColor.a);
-              `,
-            );
-          };
-          material.customProgramCacheKey = () => 'jupiter-terminator-v3';
-          material.needsUpdate = true;
-        }
-      });
-    });
-  }, [planet, sunDirection]);
+  const { patchPositions, patchColors, hazePositions, hazeColors } = useMemo(() => {
+    const gaussian = () => {
+      const u = Math.max(Math.random(), 1e-6);
+      const v = Math.random();
+      return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    };
 
-  useFrame(({ clock }) => {
-    if (!groupRef.current) return;
-    const t = clock.getElapsedTime();
-    groupRef.current.rotation.y = JUPITER_BASE_YAW + Math.sin(t * 0.09) * 0.035;
-    groupRef.current.position.y = 62 + Math.sin(t * 0.2) * 2.2;
-  });
+    const clusterCount = 15;
+    const clusters = Array.from(
+      { length: clusterCount },
+      () =>
+        new THREE.Vector3(
+          THREE.MathUtils.randFloatSpread(1700),
+          THREE.MathUtils.randFloat(-220, 560),
+          THREE.MathUtils.randFloat(-1080, -620),
+        ),
+    );
+
+    const patchCount = 3000;
+    const hazeCount = 1200;
+    const patchPositions = new Float32Array(patchCount * 3);
+    const patchColors = new Float32Array(patchCount * 3);
+    const hazePositions = new Float32Array(hazeCount * 3);
+    const hazeColors = new Float32Array(hazeCount * 3);
+    const color = new THREE.Color();
+
+    for (let i = 0; i < patchCount; i++) {
+      const cluster = clusters[Math.floor(Math.random() * clusters.length)];
+      const spreadX = THREE.MathUtils.randFloat(85, 180);
+      const spreadY = THREE.MathUtils.randFloat(45, 120);
+      const spreadZ = THREE.MathUtils.randFloat(55, 150);
+
+      const x = cluster.x + gaussian() * spreadX;
+      const y = cluster.y + gaussian() * spreadY;
+      const z = cluster.z + gaussian() * spreadZ;
+
+      const index = i * 3;
+      patchPositions[index] = x;
+      patchPositions[index + 1] = y;
+      patchPositions[index + 2] = z;
+
+      const brightness = 0.62 + Math.pow(Math.random(), 5.5) * 0.34;
+      const hue = Math.random() < 0.7
+        ? THREE.MathUtils.randFloat(0.52, 0.6)
+        : THREE.MathUtils.randFloat(0.06, 0.12);
+      color.setHSL(hue, THREE.MathUtils.randFloat(0.01, 0.09), brightness);
+      patchColors[index] = color.r;
+      patchColors[index + 1] = color.g;
+      patchColors[index + 2] = color.b;
+    }
+
+    for (let i = 0; i < hazeCount; i++) {
+      const index = i * 3;
+      hazePositions[index] = THREE.MathUtils.randFloatSpread(2300);
+      hazePositions[index + 1] = THREE.MathUtils.randFloat(-460, 760);
+      hazePositions[index + 2] = THREE.MathUtils.randFloat(-1320, -760);
+
+      const hazeBrightness = 0.38 + Math.pow(Math.random(), 4.2) * 0.28;
+      const hazeHue = Math.random() < 0.7
+        ? THREE.MathUtils.randFloat(0.52, 0.6)
+        : THREE.MathUtils.randFloat(0.07, 0.12);
+      color.setHSL(hazeHue, THREE.MathUtils.randFloat(0.0, 0.06), hazeBrightness);
+      hazeColors[index] = color.r;
+      hazeColors[index + 1] = color.g;
+      hazeColors[index + 2] = color.b;
+    }
+
+    return { patchPositions, patchColors, hazePositions, hazeColors };
+  }, []);
 
   return (
-    <group ref={groupRef} position={[92, 62, -410]} rotation={[0.1, JUPITER_BASE_YAW, -0.02]}>
-      <primitive object={planet} scale={scaleFactor} />
+    <group>
+      <points frustumCulled={false}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[patchPositions, 3]} />
+          <bufferAttribute attach="attributes-color" args={[patchColors, 3]} />
+        </bufferGeometry>
+        <pointsMaterial
+          size={1.35}
+          sizeAttenuation
+          map={starSprite}
+          alphaTest={0.08}
+          vertexColors
+          transparent
+          opacity={0.74}
+          depthWrite={false}
+          blending={THREE.NormalBlending}
+          toneMapped={false}
+        />
+      </points>
+
+      <points frustumCulled={false}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[hazePositions, 3]} />
+          <bufferAttribute attach="attributes-color" args={[hazeColors, 3]} />
+        </bufferGeometry>
+        <pointsMaterial
+          size={0.82}
+          sizeAttenuation
+          map={starSprite}
+          alphaTest={0.08}
+          vertexColors
+          transparent
+          opacity={0.34}
+          depthWrite={false}
+          blending={THREE.NormalBlending}
+          toneMapped={false}
+        />
+      </points>
     </group>
   );
 }
 
-export default function CosmicSky({ sunLightPosition = DEFAULT_SUN_LIGHT_POSITION }: CosmicSkyProps) {
-  const sunDirection = useMemo(() => {
-    const dir = new THREE.Vector3(...sunLightPosition);
-    if (dir.lengthSq() < 1e-6) return new THREE.Vector3(0.7, 0.4, 0.5).normalize();
-    return dir.normalize();
-  }, [sunLightPosition]);
+function DeepSpaceLayer({ children }: { children: React.ReactNode }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const pointerParallaxRef = useRef(new THREE.Vector2(0, 0));
 
+  useFrame(({ clock, pointer }) => {
+    if (!groupRef.current) return;
+    pointerParallaxRef.current.x = THREE.MathUtils.lerp(
+      pointerParallaxRef.current.x,
+      -pointer.x * 2.6,
+      0.075,
+    );
+    pointerParallaxRef.current.y = THREE.MathUtils.lerp(
+      pointerParallaxRef.current.y,
+      -pointer.y * 1.2,
+      0.075,
+    );
+
+    groupRef.current.position.x = pointerParallaxRef.current.x;
+    groupRef.current.position.y =
+      pointerParallaxRef.current.y + Math.sin(clock.getElapsedTime() * 0.03) * 0.35;
+  });
+
+  return <group ref={groupRef}>{children}</group>;
+}
+export default function CosmicSky() {
   return (
     <group>
       <CosmicGradient />
       <VolumetricNebula />
       <NebulaClouds />
-      <JupiterPlanet sunDirection={sunDirection} />
-      <Stars
-        radius={100}
-        depth={50}
-        count={5000}
-        factor={4}
-        saturation={0.5}
-        fade
-        speed={1}
-      />
-      <Stars
-        radius={210}
-        depth={120}
-        count={3200}
-        factor={2.4}
-        saturation={0.9}
-        fade
-        speed={0.45}
-      />
+      <DeepSpaceLayer>
+        <PatchyStars />
+      </DeepSpaceLayer>
     </group>
   );
 }
-
-useGLTF.preload(JUPITER_MODEL_FILE);

@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment, useGLTF, useProgress } from '@react-three/drei';
+import { Orbitron } from 'next/font/google';
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -18,6 +19,10 @@ const scrollData = { progress: 0 };
 const HDR_ENV_FILE = process.env.NEXT_PUBLIC_HDR_ENV_FILE ?? '/env/envmap-min.exr';
 const FLOOR_MODEL_FILE = '/the_moon_-_mare_vaporum_dome.glb';
 const SUN_LIGHT_POSITION: [number, number, number] = [-14, 9, 0];
+const apexBrandFont = Orbitron({
+  subsets: ['latin'],
+  weight: ['400', '500'],
+});
 
 function MoonFloorModel() {
   const { scene } = useGLTF(FLOOR_MODEL_FILE);
@@ -181,7 +186,7 @@ export default function HeroSection() {
           <CameraRig />
           
           {/* Cosmic Background */}
-          <CosmicSky sunLightPosition={SUN_LIGHT_POSITION} />
+          <CosmicSky />
           
           {/* Environment map for reflections; override with NEXT_PUBLIC_HDR_ENV_FILE if needed */}
           <Environment files={HDR_ENV_FILE} />
@@ -211,9 +216,9 @@ export default function HeroSection() {
       >
         {/* Middle Left Logo & Menu */}
         <div className="absolute top-1/2 left-12 -translate-y-1/2 flex items-center gap-8">
-          <div className="flex flex-col gap-6">
+          <div className="flex w-max flex-col gap-6">
             {/* Left Menu positioned above APEX */}
-            <div className="flex gap-6">
+            <div className="flex w-full items-center justify-between">
               {['Home', 'Services', 'Portfolio', 'Contact'].map((link, index) => (
                 <a
                   key={link}
@@ -237,7 +242,7 @@ export default function HeroSection() {
               {/* Vertical Separator */}
               <div className="w-[1px] h-12 bg-zinc-600"></div>
               {/* Brand Name */}
-              <h1 className="text-white text-5xl md:text-6xl font-extralight tracking-[0.4em] uppercase">
+              <h1 className={`${apexBrandFont.className} text-white text-5xl md:text-6xl font-medium tracking-[0.32em] uppercase`}>
                 Apex
               </h1>
             </div>
@@ -249,8 +254,14 @@ export default function HeroSection() {
           Scroll down to discover
         </p>
 
-        {/* Bottom Right Line Indicator */}
-        <div className="absolute bottom-12 right-12 w-8 h-[1px] bg-zinc-500"></div>
+        {/* Right Edge Static Scroll Cue */}
+        <div className="absolute right-8 top-1/2 -translate-y-1/2 flex flex-col items-center gap-3">
+          <span className="text-zinc-400 text-[0.56rem] tracking-[0.24em] uppercase">
+            Scroll
+          </span>
+          <div className="h-12 w-px bg-zinc-500/60" />
+          <div className="h-1.5 w-1.5 rounded-full bg-zinc-300/80" />
+        </div>
       </div>
       {/* ----------------------- */}
     </div>
