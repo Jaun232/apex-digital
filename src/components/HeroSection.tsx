@@ -88,7 +88,7 @@ function StarshipModel() {
   }, [starship]);
 
   return (
-    <group position={[1.1, -2, 2.15]} rotation={[0.06, -2.15, 0]}>
+    <group position={[1.1, -2.18, 2.15]} rotation={[0.06, -2.15, 0]}>
       <primitive object={starship} scale={scaleFactor} position={[0, yOffset, 0]} />
     </group>
   );
