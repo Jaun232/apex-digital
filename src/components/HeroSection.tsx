@@ -17,31 +17,30 @@ if (typeof window !== "undefined") {
 // Global scroll state to pass data between GSAP and R3F
 const scrollData = { progress: 0 };
 const HDR_ENV_FILE = process.env.NEXT_PUBLIC_HDR_ENV_FILE ?? '/env/envmap-min.exr';
-const FLOOR_MODEL_FILE = '/the_moon_-_mare_vaporum_dome.glb';
-const STARSHIP_MODEL_FILE = '/starship_rocket_by_space_x.glb';
+const FLOOR_MODEL_FILE = '/mars_base.glb';
 const SUN_LIGHT_POSITION: [number, number, number] = [-14, 9, 0];
 const apexBrandFont = Orbitron({
   subsets: ['latin'],
   weight: ['400', '500'],
 });
 
-function MoonFloorModel() {
+function MarsBaseFloorModel() {
   const { scene } = useGLTF(FLOOR_MODEL_FILE);
-  const moon = useMemo(() => scene.clone(true), [scene]);
+  const floor = useMemo(() => scene.clone(true), [scene]);
   const { scaleFactor, yOffset } = useMemo(() => {
-    const box = new THREE.Box3().setFromObject(moon);
+    const box = new THREE.Box3().setFromObject(floor);
     const size = new THREE.Vector3();
     box.getSize(size);
 
-    const targetSpan = 240;
+    const targetSpan = 260;
     const span = Math.max(size.x, size.z, 1);
     const scaleFactor = targetSpan / span;
-    const yOffset = -box.max.y * scaleFactor;
+    const yOffset = -box.min.y * scaleFactor;
     return { scaleFactor, yOffset };
-  }, [moon]);
+  }, [floor]);
 
   useEffect(() => {
-    moon.traverse((child) => {
+    floor.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
       child.castShadow = false;
       child.receiveShadow = true;
@@ -50,46 +49,11 @@ function MoonFloorModel() {
         child.material.metalness = Math.max(0, child.material.metalness - 0.1);
       }
     });
-  }, [moon]);
+  }, [floor]);
 
   return (
-    <group position={[0, -2, 0]} rotation={[0, -0.24, 0]}>
-      <primitive object={moon} scale={scaleFactor} position={[0, yOffset, 0]} />
-    </group>
-  );
-}
-
-function StarshipModel() {
-  const { scene } = useGLTF(STARSHIP_MODEL_FILE);
-  const starship = useMemo(() => scene.clone(true), [scene]);
-
-  const { scaleFactor, yOffset } = useMemo(() => {
-    const box = new THREE.Box3().setFromObject(starship);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-
-    const targetHeight = 2.8;
-    const span = Math.max(size.y, 1);
-    const scaleFactor = targetHeight / span;
-    const yOffset = -box.min.y * scaleFactor;
-    return { scaleFactor, yOffset };
-  }, [starship]);
-
-  useEffect(() => {
-    starship.traverse((child) => {
-      if (!(child instanceof THREE.Mesh)) return;
-      child.castShadow = false;
-      child.receiveShadow = true;
-      if (child.material instanceof THREE.MeshStandardMaterial) {
-        child.material.roughness = Math.min(1, child.material.roughness + 0.06);
-        child.material.metalness = Math.max(0, child.material.metalness - 0.04);
-      }
-    });
-  }, [starship]);
-
-  return (
-    <group position={[1.1, -2.18, 2.15]} rotation={[0.06, -2.15, 0]}>
-      <primitive object={starship} scale={scaleFactor} position={[0, yOffset, 0]} />
+    <group position={[0, -2, 0]} rotation={[0, -0.1, 0]}>
+      <primitive object={floor} scale={scaleFactor} position={[0, yOffset, 0]} />
     </group>
   );
 }
@@ -218,8 +182,7 @@ export default function HeroSection() {
           <directionalLight position={SUN_LIGHT_POSITION} intensity={2} color="#ffffff" />
           
           {/* Procedural Scene */}
-          <MoonFloorModel />
-          <StarshipModel />
+          <MarsBaseFloorModel />
           <CameraRig />
           
           {/* Cosmic Background */}
@@ -306,4 +269,3 @@ export default function HeroSection() {
 }
 
 useGLTF.preload(FLOOR_MODEL_FILE);
-useGLTF.preload(STARSHIP_MODEL_FILE);
